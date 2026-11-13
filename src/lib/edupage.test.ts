@@ -24,7 +24,8 @@ test('login: OK → parent account, gsechash, both students, exactly one passwor
     await s.login('secret');
     assert.ok(s.isParent);
     assert.match(s.gsechash, /^gsh-/);
-    assert.deepEqual(s.students().map((x) => x.name), ['Kid Alpha', 'Kid Beta']);
+    assert.deepEqual(s.students().map((x) => x.name), ['Kid Alpha', 'Kid Beta']);   // 503 (not own child) filtered out
+    assert.equal(s.findStudent('Kid Alpha Other'), undefined, 'must not find a child that is not on this parent account');
     assert.equal(fake.count('POST /login/?akcia=login'), 1);
     assert.ok(s.sessionId);
 });

@@ -12,7 +12,7 @@ export class SessionExpired extends Error { public readonly code = 'session_expi
 export class ProtocolChanged extends Error { public readonly code = 'protocol_changed'; }
 
 /** The parts of the app page we use. dbi = lookup tables (subjects, teachers, classes, classrooms, students). */
-export interface UserHome { userid?: string; dp?: { year?: number }; dbi?: Record<string, Record<string, Record<string, unknown>>>; [k: string]: unknown }
+export interface UserHome { userid?: string; dp?: { year?: number }; parentStudentids?: unknown[]; dbi?: Record<string, Record<string, Record<string, unknown>>>; [k: string]: unknown }
 
 export interface Student { id: string; name: string; classId?: string }
 
@@ -94,7 +94,10 @@ export class EdupageSession {
     /** Students known to this account (dbi.students). Name = "firstname lastname". (Field names: unverified, checked live in M1.) */
     public students(): Student[] {
         const st = this.userhome?.dbi?.students ?? {};
-        return Object.entries(st).map(([id, s]) => ({
+        // A parent account sees whole classes in dbi.students (live: 52 entries). Only its own children count:
+        // userhome.parentStudentids (verified live 2026-11-13). Without it (student account) all entries.
+        const own = Array.isArray(this.userhome?.parentStudentids) ? new Set((this.userhome!.parentStudentids as unknown[]).map(String)) : null;
+        return Object.entries(st).filter(([id, s]) => !own || own.has(String(s.id ?? id))).map(([id, s]) => ({
             id: String(s.id ?? id),
             name: [s.firstname, s.lastname].filter(Boolean).join(' ').trim() || String(s.name ?? s.short ?? id),
             classId: s.classid !== undefined ? String(s.classid) : undefined,

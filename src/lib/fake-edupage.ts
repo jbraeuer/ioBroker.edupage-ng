@@ -11,8 +11,11 @@ export type FakeMode = 'ok' | 'badpassword' | 'captcha' | 'twofactor';
 export const FAKE_HOME = {
     userid: 'Rodic-900',
     dp: { year: 2026 },
+    parentStudentids: ['501', '502'],
     dbi: {
-        students: { '501': { id: '501', firstname: 'Kid', lastname: 'Alpha', classid: '71' }, '502': { id: '502', firstname: 'Kid', lastname: 'Beta', classid: '72' } },
+        // like the real answer: a parent sees whole classes; 503 is someone else's child with a similar name
+        students: { '501': { id: '501', firstname: 'Kid', lastname: 'Alpha', classid: '71' }, '502': { id: '502', firstname: 'Kid', lastname: 'Beta', classid: '72' },
+            '503': { id: '503', firstname: 'Kid', lastname: 'Alpha Other', classid: '71' } },
         subjects: { '11': { name: 'Mathematik', short: 'Ma' }, '12': { name: 'Englisch', short: 'En' }, '13': { name: 'Sport', short: 'Sp' } },
         teachers: { '21': { firstname: 'T.', lastname: 'One' }, '22': { firstname: 'T.', lastname: 'Two' } },
         classrooms: { '31': { name: 'R 101' }, '32': { name: 'Halle' } },
