@@ -1,0 +1,50 @@
+{
+  "common": {
+    "name": "edupage-ng",
+    "version": "0.0.1",
+    "news": {
+      "0.0.1": { "en": "M0: skeleton, configuration, request encoding, protocol notes. No EduPage access yet.", "de": "M0: Gerüst, Konfiguration, Request-Kodierung, Protokollnotizen. Noch kein Zugriff auf EduPage." }
+    },
+    "titleLang": { "en": "EduPage (timetable, substitutions, canteen)", "de": "EduPage (Stundenplan, Vertretungen, Mensa)" },
+    "desc": {
+      "en": "Read-only: today's and tomorrow's timetable incl. substitutions per child and the canteen menu, for one or two EduPage parent accounts",
+      "de": "Nur lesend: Stundenplan heute und morgen inkl. Vertretungen pro Kind und der Mensaplan, für ein oder zwei EduPage-Elternkonten"
+    },
+    "authors": ["Jens Bräuer"],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "icon": "edupage-ng.png",
+    "enabled": true,
+    "extIcon": "",
+    "readme": "README.md",
+    "loglevel": "info",
+    "type": "misc-data",
+    "compact": true,
+    "connectionType": "cloud",
+    "dataSource": "poll",
+    "adminUI": { "config": "json" },
+    "dependencies": [{ "js-controller": ">=6.0.11" }],
+    "globalDependencies": [{ "admin": ">=7.0.0" }]
+  },
+  "encryptedNative": ["account1Password", "account2Password"],
+  "protectedNative": ["account1Password", "account2Password"],
+  "native": {
+    "school": "",
+    "account1Username": "",
+    "account1Password": "",
+    "account2Username": "",
+    "account2Password": "",
+    "children": [],
+    "pollMinutes": 30
+  },
+  "objects": [],
+  "instanceObjects": [
+    { "_id": "info", "type": "channel", "common": { "name": "Information" }, "native": {} },
+    { "_id": "info.connection", "type": "state", "common": { "role": "indicator.connected", "name": "Logged in and data current", "type": "boolean", "read": true, "write": false, "def": false }, "native": {} },
+    { "_id": "info.lastError", "type": "state", "common": { "role": "text", "name": "Last error (login_failed, captcha, twofactor, …)", "type": "string", "read": true, "write": false, "def": "" }, "native": {} },
+    { "_id": "info.lastSuccess", "type": "state", "common": { "role": "date", "name": "Last successful update", "type": "number", "read": true, "write": false, "def": 0 }, "native": {} },
+    { "_id": "control", "type": "channel", "common": { "name": "Control" }, "native": {} },
+    { "_id": "control.retry", "type": "state", "common": { "role": "button", "name": "Retry now (after a blocked login, e.g. captcha solved in the browser)", "type": "boolean", "read": false, "write": true, "def": false }, "native": {} }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "iobroker.edupage-ng",
+  "version": "0.0.1",
+  "description": "EduPage for ioBroker: today's timetable incl. substitutions per child and the canteen menu, read-only, for parent accounts",
+  "author": "Jens Bräuer",
+  "license": "MIT",
+  "keywords": ["ioBroker", "edupage", "school", "timetable", "Vertretungsplan", "canteen"],
+  "main": "build/main.js",
+  "files": ["admin/", "build/", "io-package.json", "LICENSE", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"build/**/*.test.js\""
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.2.3"
+  },
+  "devDependencies": {
+    "@iobroker/types": "^7.0.7",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

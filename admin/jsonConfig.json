@@ -1,0 +1,25 @@
+{
+  "i18n": false,
+  "type": "panel",
+  "items": {
+    "_school": { "type": "header", "text": "School", "size": 3 },
+    "school": { "type": "text", "label": "EduPage subdomain (e.g. 'myschool' for myschool.edupage.org)", "sm": 12, "md": 6 },
+    "pollMinutes": { "type": "number", "label": "Update every … minutes (min. 15, recommended 30)", "min": 15, "max": 240, "sm": 12, "md": 6 },
+    "_acc1": { "type": "header", "text": "Parent account 1", "size": 3, "newLine": true },
+    "account1Username": { "type": "text", "label": "Username", "sm": 12, "md": 6 },
+    "account1Password": { "type": "password", "label": "Password", "repeat": false, "visible": true, "sm": 12, "md": 6 },
+    "_acc2": { "type": "header", "text": "Parent account 2 (optional)", "size": 3, "newLine": true },
+    "account2Username": { "type": "text", "label": "Username", "sm": 12, "md": 6 },
+    "account2Password": { "type": "password", "label": "Password", "repeat": false, "visible": true, "sm": 12, "md": 6 },
+    "_kids": { "type": "header", "text": "Children", "size": 3, "newLine": true },
+    "_kidsHelp": { "type": "staticText", "text": "One row per child. 'Alias' becomes the state folder (e.g. 'anna' → edupage-ng.0.anna.today.*). The EduPage name must match how the child is listed in the parent account.", "sm": 12 },
+    "children": {
+      "type": "table", "sm": 12, "noDelete": false,
+      "items": [
+        { "type": "text", "attr": "alias", "title": "Alias (a–z, 0–9)", "width": "25%", "filter": false, "sort": false, "default": "" },
+        { "type": "text", "attr": "name", "title": "Name in EduPage", "width": "45%", "filter": false, "sort": false, "default": "" },
+        { "type": "select", "attr": "account", "title": "Account", "width": "30%", "options": [{ "label": "1", "value": 1 }, { "label": "2", "value": 2 }], "default": 1 }
+      ]
+    }
+  }
+}
