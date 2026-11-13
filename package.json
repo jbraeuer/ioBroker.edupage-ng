@@ -1,6 +1,6 @@
 {
   "name": "iobroker.edupage-ng",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "EduPage for ioBroker: today's timetable incl. substitutions per child and the canteen menu, read-only, for parent accounts",
   "author": "Jens Bräuer",
   "license": "MIT",

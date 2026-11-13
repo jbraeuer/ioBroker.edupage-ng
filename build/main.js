@@ -91,7 +91,7 @@ class EdupageNg extends utils.Adapter {
             await this.setObjectNotExistsAsync(`${k.alias}.${day}`, { type: 'channel', common: { name: day }, native: {} });
             for (const [id, role, name] of [
                 ['lessons', 'json', 'Lessons (JSON list)'], ['changes', 'json', 'Substitutions / changes (JSON list)'],
-                ['text', 'text', 'Timetable as text'], ['html', 'html', 'Timetable as HTML (for VIS)'], ['end', 'text', 'End of the last lesson that takes place ("Schluss")'],
+                ['text', 'text', 'Timetable as text'], ['end', 'text', 'End of the last lesson that takes place ("Schluss")'],
                 ['homework', 'json', 'Homework given on this day (JSON list)'], ['homeworkDue', 'json', 'Homework due on this day (JSON list)'],
             ]) {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
@@ -101,17 +101,17 @@ class EdupageNg extends utils.Adapter {
         await this.setObjectNotExistsAsync(`${k.alias}.next.date`, { type: 'state', common: { name: 'Date of the next school day (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
     }
-    /** 0.0.1 had `<child>.tomorrow.*` and `canteen.tomorrow.*`; 0.0.2 replaces them with `next.*`. */
+    /** 0.0.1 had `<child>.tomorrow.*` and `canteen.tomorrow.*` (0.0.2: `next.*`); the `.html` states were never filled (0.0.8: removed). */
     async removeObsoleteTomorrow() {
         // by pattern: canteen.tomorrow.* were states without a channel object, so deleting the parent misses them
         const old = await this.getForeignObjectsAsync(`${this.namespace}.*`);
-        for (const id of Object.keys(old).filter((i) => /\.tomorrow(\.|$)/.test(i)).sort().reverse())
+        for (const id of Object.keys(old).filter((i) => /\.tomorrow(\.|$)|\.(today|next)\.html$/.test(i)).sort().reverse())
             await this.delForeignObjectAsync(id);
     }
     async createCanteenStates() {
         await this.setObjectNotExistsAsync('canteen', { type: 'channel', common: { name: 'Canteen' }, native: {} });
         for (const day of ['today', 'next']) {
-            for (const [id, role, name] of [['menu', 'json', 'Menu (JSON)'], ['text', 'text', 'Menu as text'], ['html', 'html', 'Menu as HTML (for VIS)']]) {
+            for (const [id, role, name] of [['menu', 'json', 'Menu (JSON)'], ['text', 'text', 'Menu as text']]) {
                 await this.setObjectNotExistsAsync(`canteen.${day}.${id}`, { type: 'state', common: { name: `${day}: ${name}`, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
         }
