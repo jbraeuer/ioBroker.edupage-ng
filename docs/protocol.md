@@ -48,6 +48,8 @@ POST `/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml`, JSON `{"
 ## 7. Canteen (read-only)
 - **Only** GET `/menu/?date=YYYYMMDD`. The page contains a JS literal `edupageData: {…}`; menus per date and meal (1 snack, 2 lunch, 3 afternoon).
 - **Never POST to `/menu/`**: that path orders, cancels and rates meals. `src/lib/safety.test.ts` fails the build if such calls show up.
+- *Verified live 2026-11-13:* one page = the **Mon–Fri week** of `date`. `edupageData.<school>.novyListok.<YYYY-MM-DD>."2"` = lunch with `isCooking`, `vydaj_od`/`vydaj_do` (serving time), `nazvyMenu` (`{"1": {nazov: "Standard-Essen", skratka: "S"}, …}`), `rows[]` (`nazov` = dish, `menusStr` = `"S: "`, `alergenyStr`; empty rows and `null` in between), `nazov` (all dishes in one text). Non-date keys like `addInfo` sit next to the dates.
+- The menu is the same for all children of the school (compared for 2 children, 5 days) → fetched once per poll.
 
 ## 8. Politeness
 Poll every 30 min (min. 15) with jitter, one request per thing, no parallel logins, no retries in tight loops.

@@ -10,8 +10,8 @@
 import * as utils from '@iobroker/adapter-core';
 
 import { Config, Child, validateConfig } from './lib/config';
-import { ClassbookLesson, EdupageSession, Homework, SessionExpired } from './lib/edupage';
-import { dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText } from './lib/lessons';
+import { ClassbookLesson, EdupageSession, Homework, Lunch, SessionExpired } from './lib/edupage';
+import { canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText } from './lib/lessons';
 import { describe } from './lib/structure';
 
 const HOUR = 3600000;
@@ -22,6 +22,7 @@ export class EdupageNg extends utils.Adapter {
     private timer: ioBroker.Timeout | undefined;
     private blocked = false;   // true after a login error until control.retry
     private sessions = new Map<number, EdupageSession>();
+    private nextSchoolDay = '';   // from the first child's timetable in this poll; the canteen uses it
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'edupage-ng' });
@@ -94,6 +95,7 @@ export class EdupageNg extends utils.Adapter {
 
     private async poll(): Promise<void> {
         if (this.blocked) return;
+        this.nextSchoolDay = '';
         try {
             for (const acc of [1, 2] as const) {
                 const kids = this.cfg.children.filter((k) => (k.account || 1) === acc);
@@ -106,6 +108,7 @@ export class EdupageNg extends utils.Adapter {
                     await this.pollAccount(acc, kids);
                 }
             }
+            await this.pollCanteen();
             await this.setStateAsync('info.connection', true, true);
             await this.setStateAsync('info.lastError', '', true);
             await this.setStateAsync('info.lastSuccess', Date.now(), true);
@@ -160,6 +163,7 @@ export class EdupageNg extends utils.Adapter {
             if (s.isParent) await s.switchChild(st.id);
             const plain = toLessons(await s.timetable(st.id, today, until), s.userhome);
             const next = nextSchoolDay(plain, today);
+            if (next && (!this.nextSchoolDay || next < this.nextSchoolDay)) this.nextSchoolDay = next;
             const { register, homework } = await this.extras(s, k, today, next || today);
             const lessons = enrich(plain, register, homework);
             await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify(openHomework(homework, today, s.userhome)), true);
@@ -177,6 +181,27 @@ export class EdupageNg extends utils.Adapter {
         }
     }
 
+
+    /** Canteen (same for the whole school, verified live 2026-11-13): once per poll, today + next school day. Optional. */
+    private async pollCanteen(): Promise<void> {
+        const s = this.sessions.get(1) ?? this.sessions.get(2);
+        if (!s) return;
+        const today = ymd(new Date()), next = this.nextSchoolDay;
+        let week: Lunch[] = [];
+        try {
+            week = await s.menuWeek(today);
+            if (next && !week.some((d) => d.date === next)) week = week.concat(await s.menuWeek(next));   // next school day in another week
+        } catch (e) {
+            // optional and after the timetable: even an expired session is only a warning here (the next poll repairs it)
+            this.log.warn(`canteen not available (${(e as Error).message})`);
+            return;
+        }
+        for (const [day, date] of [['today', today], ['next', next]] as const) {
+            const lunch = week.find((d) => d.date === date) ?? null;
+            await this.setStateAsync(`canteen.${day}.menu`, lunch ? JSON.stringify(lunch) : '', true);
+            await this.setStateAsync(`canteen.${day}.text`, canteenText(lunch), true);
+        }
+    }
 
     /**
      * Homework list + class register (lesson topics) for the current child. Optional: the timetable is the source of

@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "news": {
+      "0.0.7": { "en": "M4: canteen (lunch menus today + next school day, read-only).", "de": "M4: Mensa (Mittagessen heute + nächster Schultag, nur lesend)." },
       "0.0.6": { "en": "openHomework per child: everything due today or later.", "de": "openHomework je Kind: alles, was ab heute fällig ist." },
       "0.0.5": { "en": "Double lessons get the topics of both periods.", "de": "Doppelstunden bekommen die Themen beider Stunden." },
       "0.0.4": { "en": "Lesson topic (class register) and homework per lesson; homework given / due per day.", "de": "Unterrichtsthema (Klassenbuch) und Hausaufgaben je Stunde; Hausaufgaben aufgegeben / fällig je Tag." },

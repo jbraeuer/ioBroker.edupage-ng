@@ -1,5 +1,5 @@
 /** Turns raw timetable items (+ the dbi lookup tables) into lessons for the panel. */
-import type { ClassbookLesson, Homework, UserHome } from './edupage';
+import type { ClassbookLesson, Homework, Lunch, UserHome } from './edupage';
 
 export interface Lesson {
     date: string;
@@ -120,4 +120,11 @@ export function dayLabel(date: string, today: string): string {
     if (!date) return '';
     const days = Math.round((parse(date).getTime() - parse(today).getTime()) / 86400000);
     return days === 1 ? 'Morgen' : WEEKDAYS[parse(date).getDay()];
+}
+
+/** Canteen as text: "S: <dish>" per menu line; '' if there is no menu for the day, "kein Mittagessen" if not cooking. */
+export function canteenText(lunch: Lunch | null): string {
+    if (!lunch) return '';
+    if (!lunch.cooking) return 'kein Mittagessen';
+    return lunch.menus.map((m) => (m.code ? `${m.code}: ${m.dish}` : m.dish)).join('\n');
 }

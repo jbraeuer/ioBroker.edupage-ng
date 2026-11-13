@@ -55,6 +55,7 @@ class EdupageNg extends utils.Adapter {
     timer;
     blocked = false; // true after a login error until control.retry
     sessions = new Map();
+    nextSchoolDay = ''; // from the first child's timetable in this poll; the canteen uses it
     constructor(options = {}) {
         super({ ...options, name: 'edupage-ng' });
         this.on('ready', this.onReady.bind(this));
@@ -124,6 +125,7 @@ class EdupageNg extends utils.Adapter {
     async poll() {
         if (this.blocked)
             return;
+        this.nextSchoolDay = '';
         try {
             for (const acc of [1, 2]) {
                 const kids = this.cfg.children.filter((k) => (k.account || 1) === acc);
@@ -139,6 +141,7 @@ class EdupageNg extends utils.Adapter {
                     await this.pollAccount(acc, kids);
                 }
             }
+            await this.pollCanteen();
             await this.setStateAsync('info.connection', true, true);
             await this.setStateAsync('info.lastError', '', true);
             await this.setStateAsync('info.lastSuccess', Date.now(), true);
@@ -195,6 +198,8 @@ class EdupageNg extends utils.Adapter {
                 await s.switchChild(st.id);
             const plain = (0, lessons_1.toLessons)(await s.timetable(st.id, today, until), s.userhome);
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
+            if (next && (!this.nextSchoolDay || next < this.nextSchoolDay))
+                this.nextSchoolDay = next;
             const { register, homework } = await this.extras(s, k, today, next || today);
             const lessons = (0, lessons_1.enrich)(plain, register, homework);
             await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify((0, lessons_1.openHomework)(homework, today, s.userhome)), true);
@@ -209,6 +214,29 @@ class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homework`, JSON.stringify((0, lessons_1.homeworkGiven)(homework, date, s.userhome)), true);
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify((0, lessons_1.homeworkDue)(homework, date, s.userhome)), true);
             }
+        }
+    }
+    /** Canteen (same for the whole school, verified live 2026-11-13): once per poll, today + next school day. Optional. */
+    async pollCanteen() {
+        const s = this.sessions.get(1) ?? this.sessions.get(2);
+        if (!s)
+            return;
+        const today = ymd(new Date()), next = this.nextSchoolDay;
+        let week = [];
+        try {
+            week = await s.menuWeek(today);
+            if (next && !week.some((d) => d.date === next))
+                week = week.concat(await s.menuWeek(next)); // next school day in another week
+        }
+        catch (e) {
+            // optional and after the timetable: even an expired session is only a warning here (the next poll repairs it)
+            this.log.warn(`canteen not available (${e.message})`);
+            return;
+        }
+        for (const [day, date] of [['today', today], ['next', next]]) {
+            const lunch = week.find((d) => d.date === date) ?? null;
+            await this.setStateAsync(`canteen.${day}.menu`, lunch ? JSON.stringify(lunch) : '', true);
+            await this.setStateAsync(`canteen.${day}.text`, (0, lessons_1.canteenText)(lunch), true);
         }
     }
     /**

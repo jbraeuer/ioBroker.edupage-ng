@@ -9,6 +9,7 @@ exports.openHomework = openHomework;
 exports.homeworkGiven = homeworkGiven;
 exports.nextSchoolDay = nextSchoolDay;
 exports.dayLabel = dayLabel;
+exports.canteenText = canteenText;
 const name = (dbi, table, id) => {
     const row = dbi?.[table]?.[String(id)];
     if (!row)
@@ -102,5 +103,13 @@ function dayLabel(date, today) {
         return '';
     const days = Math.round((parse(date).getTime() - parse(today).getTime()) / 86400000);
     return days === 1 ? 'Morgen' : WEEKDAYS[parse(date).getDay()];
+}
+/** Canteen as text: "S: <dish>" per menu line; '' if there is no menu for the day, "kein Mittagessen" if not cooking. */
+function canteenText(lunch) {
+    if (!lunch)
+        return '';
+    if (!lunch.cooking)
+        return 'kein Mittagessen';
+    return lunch.menus.map((m) => (m.code ? `${m.code}: ${m.dish}` : m.dish)).join('\n');
 }
 //# sourceMappingURL=lessons.js.map

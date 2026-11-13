@@ -99,4 +99,28 @@ const session = () => new edupage_1.EdupageSession('fakeschool', 'parent', base)
     await strict_1.default.rejects(s.classbook('2026-11-13', '2026-11-13'), (e) => e instanceof edupage_1.SessionExpired);
     fake.expireSessions = false;
 });
+(0, node_test_1.test)('canteen: one GET per week, S/W menus with labels, a non-cooking day, never a POST', async () => {
+    const s = session();
+    await s.login('secret');
+    const week = await s.menuWeek('2026-11-17');
+    strict_1.default.deepEqual(week.map((d) => d.date), ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']);
+    const mon = week[0];
+    strict_1.default.deepEqual([mon.cooking, mon.from, mon.to], [true, '11:55', '13:30']);
+    strict_1.default.deepEqual(mon.menus, [
+        { code: 'S', label: 'Standard-Essen', dish: 'Nudeln 2026-11-16', allergens: '1, 3' },
+        { code: 'W', label: 'Wahl-Essen (vegetarisch)', dish: 'Gemüse 2026-11-16', allergens: '' },
+    ]);
+    strict_1.default.equal((0, lessons_1.canteenText)(mon), 'S: Nudeln 2026-11-16\nW: Gemüse 2026-11-16');
+    strict_1.default.equal((0, lessons_1.canteenText)(week[2]), 'kein Mittagessen');
+    strict_1.default.equal((0, lessons_1.canteenText)(null), '');
+    strict_1.default.equal(fake.count('GET /menu/'), 1);
+    strict_1.default.equal(fake.count('MENU WRITE'), 0);
+});
+(0, node_test_1.test)('canteen: expired session → SessionExpired, no login', async () => {
+    const s = session();
+    await s.login('secret');
+    fake.expireSessions = true;
+    await strict_1.default.rejects(s.menuWeek('2026-11-16'), (e) => e instanceof edupage_1.SessionExpired);
+    strict_1.default.equal(s.passwordLogins, 1);
+});
 //# sourceMappingURL=edupage.test.js.map

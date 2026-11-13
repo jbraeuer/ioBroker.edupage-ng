@@ -24,7 +24,7 @@ Read-only EduPage adapter for parents: **today's and the next school day's timet
 | `<child>.today.homeworkDue` / `.next.homeworkDue` | homework due on that day (JSON) |
 | `<child>.openHomework` | all homework due today or later, soonest first (JSON: subject, title, details, given, due) |
 | `<child>.today.text` / `.html` | ready to show (VIS) |
-| `canteen.today.menu` / `.text` / `.html` (and `next`) | canteen |
+| `canteen.today.menu` / `.text` (and `next`) | lunch: JSON `{date, cooking, from, to, menus: [{code, label, dish, allergens}]}`; text `S: …` per menu, `kein Mittagessen` if not cooking |
 
 ## Roadmap
 M0 skeleton ✅ · M1 login + session reuse + one child's timetable · M2 two accounts, several children · M3 substitutions · M4 canteen · M5 VIS HTML, i18n, release 0.1.0

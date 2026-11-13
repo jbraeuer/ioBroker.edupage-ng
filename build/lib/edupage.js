@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EdupageSession = exports.ProtocolChanged = exports.SessionExpired = exports.TwoFactorRequired = exports.CaptchaRequired = exports.LoginFailed = void 0;
+exports.parseMenuPage = parseMenuPage;
 exports.parseHomeworkPage = parseHomeworkPage;
 exports.classbookGparam = classbookGparam;
 exports.parseClassbook = parseClassbook;
@@ -33,6 +34,36 @@ class ProtocolChanged extends Error {
 }
 exports.ProtocolChanged = ProtocolChanged;
 const d10 = (v) => String(v ?? '').slice(0, 10);
+/** Parses the canteen page (`edupageData: {<school>: {novyListok: {<date>: {"2": lunch}}}}`). One page = one week. */
+function parseMenuPage(html, school) {
+    const i = html.indexOf('edupageData');
+    if (i < 0)
+        return null;
+    const json = jsonObjectAt(html, html.indexOf('{', i));
+    if (!json)
+        throw new ProtocolChanged('menu: edupageData found, but its JSON could not be read');
+    const data = JSON.parse(json);
+    const days = (data[school] ?? Object.values(data)[0])?.novyListok;
+    if (!days || typeof days !== 'object')
+        throw new ProtocolChanged('menu: no novyListok');
+    const out = [];
+    for (const [date, meals] of Object.entries(days)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+            continue; // e.g. addInfo
+        const m = meals?.['2']; // 1 snack · 2 lunch · 3 afternoon
+        if (!m)
+            continue;
+        const names = (m.nazvyMenu ?? {});
+        const label = (code) => Object.values(names).find((n) => n.skratka === code)?.nazov ?? '';
+        const rows = (Array.isArray(m.rows) ? m.rows : []);
+        const menus = rows.filter((r) => !!r && !!String(r.nazov ?? '').trim()).map((r) => {
+            const code = String(r.menusStr ?? '').replace(/[:\s]+$/, '').trim();
+            return { code, label: label(code), dish: String(r.nazov).trim(), allergens: String(r.alergenyStr ?? '').trim() };
+        });
+        out.push({ date, cooking: m.isCooking !== false && menus.length > 0, from: String(m.vydaj_od ?? ''), to: String(m.vydaj_do ?? ''), menus });
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date));
+}
 const looksLikeLogin = (html) => /\/login\//.test(html) && !html.includes('edubar(');
 /** Parses the homework page (`homeworklist({...})`). Returns null if the page isn't the homework page. */
 function parseHomeworkPage(html) {
@@ -210,6 +241,16 @@ class EdupageSession {
         if (!Array.isArray(out.ttitems))
             throw new ProtocolChanged('timetable: no ttitems list');
         return out.ttitems;
+    }
+    /** Lunch menus of the week that contains `date` (YYYY-MM-DD). GET only: a POST to /menu/ would order meals. */
+    async menuWeek(date) {
+        const r = await this.http.request('GET', `/menu/?date=${date.replaceAll('-', '')}`);
+        const week = parseMenuPage(r.text, this.school);
+        if (week)
+            return week;
+        if (looksLikeLogin(r.text))
+            throw new SessionExpired('menu: not logged in');
+        throw new ProtocolChanged('menu page without edupageData');
     }
     /** Homework of the current child (after switchChild). GET only. */
     async homeworks() {

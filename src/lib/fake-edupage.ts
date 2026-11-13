@@ -87,6 +87,23 @@ export class FakeEdupage {
                 : [{ date: __args[1].datefrom, uniperiod: '1', starttime: '08:00', endtime: '08:45', subjectid: '11', teacherids: ['22'], classroomids: ['31'], type: 'card' }];
             return void res.end(JSON.stringify({ r: { ttitems: items } }));
         }
+        if (url.pathname === '/menu/') {
+            if (req.method !== 'GET') { this.log.push('MENU WRITE'); res.writeHead(403); return void res.end('ordering refused by the fake'); }
+            if (!valid) return void res.end('<html><a href="/login/">login</a></html>');
+            const q = url.searchParams.get('date') ?? '';                       // YYYYMMDD → the Mon–Fri week of that date
+            const d = new Date(Number(q.slice(0, 4)), Number(q.slice(4, 6)) - 1, Number(q.slice(6, 8)), 12);
+            const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+            const names = { '1': { nazov: 'Standard-Essen', skratka: 'S' }, '2': { nazov: 'Wahl-Essen (vegetarisch)', skratka: 'W' } };
+            const days: Record<string, unknown> = { addInfo: { strRow: '' } };
+            for (let i = 0; i < 5; i++) {
+                const x = new Date(mon); x.setDate(mon.getDate() + i);
+                const k = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+                days[k] = { '2': k === '2026-11-18' ? { isCooking: false, rows: [], nazvyMenu: names } : {
+                    isCooking: true, vydaj_od: '11:55', vydaj_do: '13:30', nazvyMenu: names, nazov: 'whole text',
+                    rows: [{ nazov: '' }, { nazov: `Nudeln ${k}`, menusStr: 'S: ', alergenyStr: '1, 3' }, { nazov: `Gemüse ${k}`, menusStr: 'W: ' }, null, { nazov: '' }] } };
+            }
+            return void res.end(`<html><script>var x = { edupageData: ${JSON.stringify({ fakeschool: { novyListok: days } })},\r\n other: 1 };</script></html>`);
+        }
         if (url.pathname === '/dashboard/eb.php' && url.searchParams.get('mode') === 'exam') {
             if (!valid) return void res.end('<html><a href="/login/">login</a></html>');
             const hws = this.currentChild === '501' ? [
