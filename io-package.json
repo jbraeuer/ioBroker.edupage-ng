@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "news": {
+      "0.0.4": { "en": "Lesson topic (class register) and homework per lesson; homework given / due per day.", "de": "Unterrichtsthema (Klassenbuch) und Hausaufgaben je Stunde; Hausaufgaben aufgegeben / fällig je Tag." },
       "0.0.3": { "en": "Remove leftover canteen.tomorrow states; homework date probe in debug.*.", "de": "Alte canteen.tomorrow-States entfernt; Hausaufgaben-Datumsprobe in debug.*." },
       "0.0.2": { "en": "Next school day (next.*, replaces tomorrow.*); structure-only discovery state for homework (debug.*).", "de": "Nächster Schultag (next.*, ersetzt tomorrow.*); Diagnose-State nur mit Struktur für Hausaufgaben (debug.*)." },
       "0.0.1": { "en": "M0: skeleton, configuration, request encoding, protocol notes. No EduPage access yet.", "de": "M0: Gerüst, Konfiguration, Request-Kodierung, Protokollnotizen. Noch kein Zugriff auf EduPage." }

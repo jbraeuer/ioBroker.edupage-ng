@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.toLessons = toLessons;
 exports.lastEnd = lastEnd;
 exports.toText = toText;
+exports.enrich = enrich;
+exports.homeworkDue = homeworkDue;
+exports.homeworkGiven = homeworkGiven;
 exports.nextSchoolDay = nextSchoolDay;
 exports.dayLabel = dayLabel;
 const name = (dbi, table, id) => {
@@ -33,6 +36,9 @@ function toLessons(items, home) {
             cancelled: removed,
             changed: !removed && (event || noteParts.length > 0 || !!it.changed),
             note: removed && !noteParts.length ? 'fällt aus' : noteParts.join(' · '),
+            subjectId: String(it.subjectid ?? ''),
+            topic: '',
+            homework: [],
         };
     })
         .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
@@ -42,8 +48,34 @@ function lastEnd(lessons) {
     return lessons.filter((l) => !l.cancelled && l.end).map((l) => l.end).sort().pop() ?? '';
 }
 function toText(lessons) {
-    return lessons.map((l) => `${l.period} ${l.start} ${l.subject}${l.room ? ' ' + l.room : ''}${l.cancelled ? ' (fällt aus)' : l.note ? ' (' + l.note + ')' : ''}`).join('\n');
+    return lessons.map((l) => `${l.period} ${l.start} ${l.subject}${l.room ? ' ' + l.room : ''}${l.cancelled ? ' (fällt aus)' : l.note ? ' (' + l.note + ')' : ''}`
+        + (l.topic ? ` – ${l.topic}` : '') + (l.homework.length ? ` · HA: ${l.homework.join('; ')}` : '')).join('\n');
 }
+/**
+ * Adds the class register topic and the homework given in a lesson. The timetable stays the source of truth
+ * (cancelled / changed are never touched; Jens 2026-11-13: teachers don't use the class register reliably).
+ * Match: same date + subject, then the same start time (or period); a lesson without a register entry keeps topic ''.
+ * Homework: linked by id from the register, else given that day in that subject → the first such lesson only.
+ */
+function enrich(lessons, register, homework) {
+    const used = new Set();
+    return lessons.map((l) => {
+        const same = register.filter((r) => r.date === l.date && r.subjectId === l.subjectId);
+        const r = same.find((x) => x.start && x.start === l.start) ?? same.find((x) => x.period && x.period === l.period) ?? (same.length === 1 ? same[0] : undefined);
+        const hw = homework.filter((h) => !used.has(h.id) && ((r?.homeworkIds.includes(h.id)) || (h.given === l.date && h.subjectId === l.subjectId)));
+        hw.forEach((h) => used.add(h.id));
+        return { ...l, topic: r?.topic ?? '', homework: hw.map((h) => h.title || h.details).filter(Boolean) };
+    });
+}
+/** Homework that is due on `date`, with the subject name. */
+function homeworkDue(homework, date, home) {
+    return homework.filter((h) => date && h.due === date).map((h) => toEntry(h, home));
+}
+/** Homework given on `date`. */
+function homeworkGiven(homework, date, home) {
+    return homework.filter((h) => date && h.given === date).map((h) => toEntry(h, home));
+}
+const toEntry = (h, home) => ({ subject: name(home?.dbi, 'subjects', h.subjectId), title: h.title, details: h.details, given: h.given, due: h.due });
 /** The first date after `today` (YYYY-MM-DD) that has at least one lesson, or '' if none in the range. */
 function nextSchoolDay(lessons, today) {
     return lessons.map((l) => l.date).filter((d) => d > today).sort()[0] ?? '';

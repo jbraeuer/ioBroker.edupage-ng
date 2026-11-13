@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CaptchaRequired, EdupageSession, jsonObjectAt, LoginFailed, parseAppPage, SessionExpired, TwoFactorRequired } from './edupage';
 import { FakeEdupage } from './fake-edupage';
-import { lastEnd, toLessons, toText } from './lessons';
+import { enrich, lastEnd, toLessons, toText } from './lessons';
 
 const fake = new FakeEdupage();
 let base = '';
@@ -79,4 +79,29 @@ test('parent: switch child, timetable → lessons with substitution + cancelled 
     assert.equal(lessons[0].teacher, 'T. One');
     assert.equal(lastEnd(lessons), '09:35');
     assert.match(toText(lessons), /3 09:55 Sport Halle \(fällt aus\)/);
+});
+
+test('homework + class register (read only): parsed, merged into the lessons, only loadData is sent', async () => {
+    const s = session();
+    await s.login('secret');
+    await s.switchChild('501');
+    const hws = await s.homeworks();
+    assert.deepEqual(hws.map((h) => [h.id, h.subjectId, h.given, h.due]), [['h1', '11', '2026-11-13', '2026-11-16'], ['h2', '12', '2026-11-10', '2026-11-16']]);
+    const reg = await s.classbook('2026-11-13', '2026-11-13');
+    assert.deepEqual(reg.map((r) => [r.start, r.subjectId, r.topic, r.homeworkIds]), [['08:00', '11', 'Brüche erweitern', ['h1']], ['08:50', '12', '', []]]);
+    const lessons = enrich(toLessons(await s.timetable('501', '2026-11-13', '2026-11-13'), s.userhome), reg, hws);
+    assert.deepEqual(lessons.map((l) => [l.subject, l.topic, l.homework, l.cancelled]), [
+        ['Mathematik', 'Brüche erweitern', ['Buch S. 12'], false], ['Englisch', '', [], false], ['Sport', '', [], true],
+    ]);
+    assert.deepEqual(fake.log.filter((x) => x.startsWith('gcall')), ['gcall action=loadData']);
+    assert.equal(s.passwordLogins, 1);
+});
+
+test('homework / class register with an expired session → SessionExpired (no login loop)', async () => {
+    const s = session();
+    await s.login('secret');
+    fake.expireSessions = true;
+    await assert.rejects(s.homeworks(), (e: Error) => e instanceof SessionExpired);
+    await assert.rejects(s.classbook('2026-11-13', '2026-11-13'), (e: Error) => e instanceof SessionExpired);
+    fake.expireSessions = false;
 });

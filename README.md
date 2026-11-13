@@ -19,6 +19,9 @@ Read-only EduPage adapter for parents: **today's and the next school day's timet
 | `<child>.next.date` / `.next.label` | date of the next school day, button label ("Morgen" or the weekday) |
 | `debug.account1` / `debug.account2` | structure of the EduPage data (key names + counts only, no content), for development |
 | `<child>.today.changes` | substitutions / cancelled lessons |
+| lesson fields `topic`, `homework` | lesson topic ("Lehrstoff") from the class register; titles of homework given in that lesson |
+| `<child>.today.homework` / `.next.homework` | homework given on that day (JSON) |
+| `<child>.today.homeworkDue` / `.next.homeworkDue` | homework due on that day (JSON) |
 | `<child>.today.text` / `.html` | ready to show (VIS) |
 | `canteen.today.menu` / `.text` / `.html` (and `next`) | canteen |
 

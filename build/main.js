@@ -91,6 +91,7 @@ class EdupageNg extends utils.Adapter {
             for (const [id, role, name] of [
                 ['lessons', 'json', 'Lessons (JSON list)'], ['changes', 'json', 'Substitutions / changes (JSON list)'],
                 ['text', 'text', 'Timetable as text'], ['html', 'html', 'Timetable as HTML (for VIS)'], ['end', 'text', 'End of the last lesson that takes place ("Schluss")'],
+                ['homework', 'json', 'Homework given on this day (JSON list)'], ['homeworkDue', 'json', 'Homework due on this day (JSON list)'],
             ]) {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
@@ -191,8 +192,10 @@ class EdupageNg extends utils.Adapter {
             }
             if (s.isParent)
                 await s.switchChild(st.id);
-            const lessons = (0, lessons_1.toLessons)(await s.timetable(st.id, today, until), s.userhome);
-            const next = (0, lessons_1.nextSchoolDay)(lessons, today);
+            const plain = (0, lessons_1.toLessons)(await s.timetable(st.id, today, until), s.userhome);
+            const next = (0, lessons_1.nextSchoolDay)(plain, today);
+            const { register, homework } = await this.extras(s, k, today, next || today);
+            const lessons = (0, lessons_1.enrich)(plain, register, homework);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
             await this.setStateAsync(`${k.alias}.next.label`, (0, lessons_1.dayLabel)(next, today), true);
             for (const [day, date] of [['today', today], ['next', next]]) {
@@ -201,8 +204,34 @@ class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.changes`, JSON.stringify(l.filter((x) => x.cancelled || x.changed)), true);
                 await this.setStateAsync(`${k.alias}.${day}.text`, (0, lessons_1.toText)(l), true);
                 await this.setStateAsync(`${k.alias}.${day}.end`, (0, lessons_1.lastEnd)(l), true);
+                await this.setStateAsync(`${k.alias}.${day}.homework`, JSON.stringify((0, lessons_1.homeworkGiven)(homework, date, s.userhome)), true);
+                await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify((0, lessons_1.homeworkDue)(homework, date, s.userhome)), true);
             }
         }
+    }
+    /**
+     * Homework list + class register (lesson topics) for the current child. Optional: the timetable is the source of
+     * truth, so any failure here only logs a warning and leaves topic/homework empty. An expired session still bubbles up.
+     */
+    async extras(s, k, from, to) {
+        let register = [], homework = [];
+        try {
+            homework = await s.homeworks();
+        }
+        catch (e) {
+            if (e instanceof edupage_1.SessionExpired)
+                throw e;
+            this.log.warn(`${k.alias}: homework not available (${e.message})`);
+        }
+        try {
+            register = await s.classbook(from, to);
+        }
+        catch (e) {
+            if (e instanceof edupage_1.SessionExpired)
+                throw e;
+            this.log.warn(`${k.alias}: class register not available (${e.message})`);
+        }
+        return { register, homework };
     }
     async onStateChange(id, state) {
         if (!state || state.ack || !id.endsWith('control.retry'))

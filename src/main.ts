@@ -10,8 +10,8 @@
 import * as utils from '@iobroker/adapter-core';
 
 import { Config, Child, validateConfig } from './lib/config';
-import { EdupageSession, SessionExpired } from './lib/edupage';
-import { dayLabel, lastEnd, nextSchoolDay, toLessons, toText } from './lib/lessons';
+import { ClassbookLesson, EdupageSession, Homework, SessionExpired } from './lib/edupage';
+import { dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, toLessons, toText } from './lib/lessons';
 import { describe } from './lib/structure';
 
 const HOUR = 3600000;
@@ -60,6 +60,7 @@ export class EdupageNg extends utils.Adapter {
             for (const [id, role, name] of [
                 ['lessons', 'json', 'Lessons (JSON list)'], ['changes', 'json', 'Substitutions / changes (JSON list)'],
                 ['text', 'text', 'Timetable as text'], ['html', 'html', 'Timetable as HTML (for VIS)'], ['end', 'text', 'End of the last lesson that takes place ("Schluss")'],
+                ['homework', 'json', 'Homework given on this day (JSON list)'], ['homeworkDue', 'json', 'Homework due on this day (JSON list)'],
             ]) {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
@@ -156,8 +157,10 @@ export class EdupageNg extends utils.Adapter {
                 throw Object.assign(new Error(`account ${acc}: no child "${k.name}" (found: ${s.students().map((x) => x.name).join(', ') || 'none'})`), { code: 'child_not_found' });
             }
             if (s.isParent) await s.switchChild(st.id);
-            const lessons = toLessons(await s.timetable(st.id, today, until), s.userhome);
-            const next = nextSchoolDay(lessons, today);
+            const plain = toLessons(await s.timetable(st.id, today, until), s.userhome);
+            const next = nextSchoolDay(plain, today);
+            const { register, homework } = await this.extras(s, k, today, next || today);
+            const lessons = enrich(plain, register, homework);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
             await this.setStateAsync(`${k.alias}.next.label`, dayLabel(next, today), true);
             for (const [day, date] of [['today', today], ['next', next]] as const) {
@@ -166,10 +169,29 @@ export class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.changes`, JSON.stringify(l.filter((x) => x.cancelled || x.changed)), true);
                 await this.setStateAsync(`${k.alias}.${day}.text`, toText(l), true);
                 await this.setStateAsync(`${k.alias}.${day}.end`, lastEnd(l), true);
+                await this.setStateAsync(`${k.alias}.${day}.homework`, JSON.stringify(homeworkGiven(homework, date, s.userhome)), true);
+                await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify(homeworkDue(homework, date, s.userhome)), true);
             }
         }
     }
 
+
+    /**
+     * Homework list + class register (lesson topics) for the current child. Optional: the timetable is the source of
+     * truth, so any failure here only logs a warning and leaves topic/homework empty. An expired session still bubbles up.
+     */
+    private async extras(s: EdupageSession, k: Child, from: string, to: string): Promise<{ register: ClassbookLesson[]; homework: Homework[] }> {
+        let register: ClassbookLesson[] = [], homework: Homework[] = [];
+        try { homework = await s.homeworks(); } catch (e) {
+            if (e instanceof SessionExpired) throw e;
+            this.log.warn(`${k.alias}: homework not available (${(e as Error).message})`);
+        }
+        try { register = await s.classbook(from, to); } catch (e) {
+            if (e instanceof SessionExpired) throw e;
+            this.log.warn(`${k.alias}: class register not available (${(e as Error).message})`);
+        }
+        return { register, homework };
+    }
 
     private async onStateChange(id: string, state: ioBroker.State | null | undefined): Promise<void> {
         if (!state || state.ack || !id.endsWith('control.retry')) return;

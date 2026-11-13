@@ -18,6 +18,11 @@ const files = (dir) => (0, node_fs_1.readdirSync)(dir).flatMap((f) => ((0, node_
             strict_1.default.ok(!s.includes(bad), `${f} contains forbidden call ${bad}`);
         }
         strict_1.default.ok(!/post[^\n]*['"`]\/menu\//i.test(s), `${f} POSTs to /menu/ (would order meals)`);
+        // class register gadget (/gcall): only the read action loadData; doCMD/open/refresh are teacher (write) actions
+        for (const m of s.matchAll(/action=([A-Za-z]+)/g))
+            strict_1.default.equal(m[1], 'loadData', `${f} sends gadget action ${m[1]}`);
+        for (const bad of ['doCMD', 'lockConfirm', 'addFromPrevious'])
+            strict_1.default.ok(!s.includes(bad), `${f} contains teacher action ${bad}`);
     }
 });
 // The lockfile must only point at the public npm registry. A dev machine behind a corporate registry proxy writes

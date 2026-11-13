@@ -76,4 +76,27 @@ const session = () => new edupage_1.EdupageSession('fakeschool', 'parent', base)
     strict_1.default.equal((0, lessons_1.lastEnd)(lessons), '09:35');
     strict_1.default.match((0, lessons_1.toText)(lessons), /3 09:55 Sport Halle \(fällt aus\)/);
 });
+(0, node_test_1.test)('homework + class register (read only): parsed, merged into the lessons, only loadData is sent', async () => {
+    const s = session();
+    await s.login('secret');
+    await s.switchChild('501');
+    const hws = await s.homeworks();
+    strict_1.default.deepEqual(hws.map((h) => [h.id, h.subjectId, h.given, h.due]), [['h1', '11', '2026-11-13', '2026-11-16'], ['h2', '12', '2026-11-10', '2026-11-16']]);
+    const reg = await s.classbook('2026-11-13', '2026-11-13');
+    strict_1.default.deepEqual(reg.map((r) => [r.start, r.subjectId, r.topic, r.homeworkIds]), [['08:00', '11', 'Brüche erweitern', ['h1']], ['08:50', '12', '', []]]);
+    const lessons = (0, lessons_1.enrich)((0, lessons_1.toLessons)(await s.timetable('501', '2026-11-13', '2026-11-13'), s.userhome), reg, hws);
+    strict_1.default.deepEqual(lessons.map((l) => [l.subject, l.topic, l.homework, l.cancelled]), [
+        ['Mathematik', 'Brüche erweitern', ['Buch S. 12'], false], ['Englisch', '', [], false], ['Sport', '', [], true],
+    ]);
+    strict_1.default.deepEqual(fake.log.filter((x) => x.startsWith('gcall')), ['gcall action=loadData']);
+    strict_1.default.equal(s.passwordLogins, 1);
+});
+(0, node_test_1.test)('homework / class register with an expired session → SessionExpired (no login loop)', async () => {
+    const s = session();
+    await s.login('secret');
+    fake.expireSessions = true;
+    await strict_1.default.rejects(s.homeworks(), (e) => e instanceof edupage_1.SessionExpired);
+    await strict_1.default.rejects(s.classbook('2026-11-13', '2026-11-13'), (e) => e instanceof edupage_1.SessionExpired);
+    fake.expireSessions = false;
+});
 //# sourceMappingURL=edupage.test.js.map

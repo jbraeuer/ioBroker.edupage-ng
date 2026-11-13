@@ -16,6 +16,9 @@ test('no meal ordering / cancelling / rating calls in the source', () => {
             assert.ok(!s.includes(bad), `${f} contains forbidden call ${bad}`);
         }
         assert.ok(!/post[^\n]*['"`]\/menu\//i.test(s), `${f} POSTs to /menu/ (would order meals)`);
+        // class register gadget (/gcall): only the read action loadData; doCMD/open/refresh are teacher (write) actions
+        for (const m of s.matchAll(/action=([A-Za-z]+)/g)) assert.equal(m[1], 'loadData', `${f} sends gadget action ${m[1]}`);
+        for (const bad of ['doCMD', 'lockConfirm', 'addFromPrevious']) assert.ok(!s.includes(bad), `${f} contains teacher action ${bad}`);
     }
 });
 

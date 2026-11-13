@@ -94,6 +94,37 @@ class FakeEdupage {
                 : [{ date: __args[1].datefrom, uniperiod: '1', starttime: '08:00', endtime: '08:45', subjectid: '11', teacherids: ['22'], classroomids: ['31'], type: 'card' }];
             return void res.end(JSON.stringify({ r: { ttitems: items } }));
         }
+        if (url.pathname === '/dashboard/eb.php' && url.searchParams.get('mode') === 'exam') {
+            if (!valid)
+                return void res.end('<html><a href="/login/">login</a></html>');
+            const hws = this.currentChild === '501' ? [
+                { homeworkid: 'h1', predmetid: '11', name: 'Buch S. 12', details: '', datefrom: '2026-11-13', dateto: '2026-11-16', typ: 'hw' },
+                { homeworkid: 'h2', predmetid: '12', name: 'Vokabeln Unit 3', details: 'lernen', datefrom: '2026-11-10', dateto: '2026-11-16', typ: 'hw' },
+            ] : [];
+            return void res.end(`<html><script>edubar({"x":1});</script><script>homeworklist(${JSON.stringify({ datefrom: '2026-10-13', homeworks: hws })});</script></html>`);
+        }
+        if (url.pathname === '/dashboard/eb.php' && url.searchParams.get('mode') === 'ttday') {
+            if (!valid)
+                return void res.end('<html><a href="/login/">login</a></html>');
+            return void res.end('<html><script>edubar({"x":1});var g1={};g1._gclass="DashboardClassbook";g1._gparam="gpid=777&gsh=abc123";</script></html>');
+        }
+        if (url.pathname === '/gcall') {
+            const p = new URLSearchParams(body);
+            this.log.push(`gcall action=${p.get('action')}`);
+            if (p.get('gpid') !== '777' || p.get('gsh') !== 'abc123')
+                return void res.end('ERR gpid');
+            if (p.get('action') !== 'loadData') {
+                res.writeHead(403);
+                return void res.end('write action refused by the fake');
+            }
+            const date = p.get('datefrom') ?? '';
+            const plan = this.currentChild === '501' ? [
+                { type: 'lesson', flags: { dp0: { date, starttime: '08:00', uniperiod: '1', subjectid: '11', note_wd: 'Brüche erweitern', homeworkids: ['h1'] } } },
+                { type: 'break' },
+                { type: 'lesson', flags: { dp0: { date, starttime: '08:50', uniperiod: '2', subjectid: '12', note_wd: '' } } },
+            ] : [];
+            return void res.end(`JS:var gi1=document.getElementById('x').ASC_gjsc;gi1.classbook.fill("gip1",${JSON.stringify({ dates: { [date]: { plan } }, dbi: {} })});`);
+        }
         res.writeHead(404);
         res.end('not found');
     }

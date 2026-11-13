@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EdupageSession = exports.ProtocolChanged = exports.SessionExpired = exports.TwoFactorRequired = exports.CaptchaRequired = exports.LoginFailed = void 0;
+exports.parseHomeworkPage = parseHomeworkPage;
+exports.classbookGparam = classbookGparam;
+exports.parseClassbook = parseClassbook;
 exports.parseAppPage = parseAppPage;
 exports.jsonObjectAt = jsonObjectAt;
 /**
@@ -29,6 +32,53 @@ class ProtocolChanged extends Error {
     code = 'protocol_changed';
 }
 exports.ProtocolChanged = ProtocolChanged;
+const d10 = (v) => String(v ?? '').slice(0, 10);
+const looksLikeLogin = (html) => /\/login\//.test(html) && !html.includes('edubar(');
+/** Parses the homework page (`homeworklist({...})`). Returns null if the page isn't the homework page. */
+function parseHomeworkPage(html) {
+    const i = html.indexOf('homeworklist(');
+    if (i < 0)
+        return null;
+    const json = jsonObjectAt(html, html.indexOf('{', i));
+    if (!json)
+        throw new ProtocolChanged('homeworklist(...) found, but its JSON could not be read');
+    const list = JSON.parse(json).homeworks;
+    if (!Array.isArray(list))
+        throw new ProtocolChanged('homeworklist: no homeworks list');
+    return list.map((h) => ({
+        id: String(h.homeworkid ?? h.hwkid ?? ''), subjectId: String(h.predmetid ?? ''), title: String(h.name ?? '').trim(),
+        details: String(h.details ?? '').trim(), given: d10(h.datefrom), due: d10(h.dateto),
+    }));
+}
+/** Finds the class register gadget's `gpid=…&gsh=…` on the ttday page, or null. */
+function classbookGparam(html) {
+    return /_gclass="DashboardClassbook";[^;]*_gparam="(gpid=\d+&gsh=[0-9a-f]+)"/.exec(html)?.[1] ?? null;
+}
+/** Parses the class register answer (`JS:… .classbook.fill("<id>", {...})`) into lessons. */
+function parseClassbook(js) {
+    const i = js.indexOf('.classbook.fill(');
+    if (i < 0)
+        throw new ProtocolChanged('class register: no classbook.fill(...)');
+    const json = jsonObjectAt(js, js.indexOf('{', i));
+    if (!json)
+        throw new ProtocolChanged('class register: fill(...) JSON could not be read');
+    const dates = JSON.parse(json).dates ?? {};
+    const out = [];
+    for (const [date, day] of Object.entries(dates)) {
+        for (const p of day.plan ?? []) {
+            if (p.type !== 'lesson')
+                continue;
+            const flags = (p.flags ?? {});
+            const dp = flags[Object.keys(flags).find((k) => /^dp\d+$/.test(k)) ?? ''] ?? {};
+            out.push({
+                date: d10(dp.date ?? date), start: String(dp.starttime ?? p.starttime ?? ''), period: String(dp.uniperiod ?? p.uniperiod ?? p.period ?? ''),
+                subjectId: String(dp.subjectid ?? p.subjectid ?? ''), topic: String(dp.note_wd ?? '').trim(),
+                homeworkIds: Array.isArray(dp.homeworkids) ? dp.homeworkids.map(String) : [],
+            });
+        }
+    }
+    return out;
+}
 /** Extracts `userhome({...});` and `ASC.gsechash="…"` from the app page. Returns null if it isn't the app page. */
 function parseAppPage(html) {
     const h = /ASC\.gsechash\s*=\s*"([^"]+)"/.exec(html);
@@ -160,6 +210,28 @@ class EdupageSession {
         if (!Array.isArray(out.ttitems))
             throw new ProtocolChanged('timetable: no ttitems list');
         return out.ttitems;
+    }
+    /** Homework of the current child (after switchChild). GET only. */
+    async homeworks() {
+        const r = await this.http.request('GET', '/dashboard/eb.php?mode=exam&filterTab=works');
+        const list = parseHomeworkPage(r.text);
+        if (list)
+            return list;
+        if (looksLikeLogin(r.text))
+            throw new SessionExpired('homework page: not logged in');
+        throw new ProtocolChanged('homework page without homeworklist(...)');
+    }
+    /** Class register (lesson topics) of the current child. Read action `loadData` only (all other gadget actions are teacher actions; safety.test.ts enforces it). */
+    async classbook(from, to) {
+        const page = await this.http.request('GET', '/dashboard/eb.php?mode=ttday');
+        const gp = classbookGparam(page.text);
+        if (!gp) {
+            if (looksLikeLogin(page.text))
+                throw new SessionExpired('class register: not logged in');
+            throw new ProtocolChanged('class register gadget not found');
+        }
+        const r = await this.http.request('POST', '/gcall', `${gp}&action=loadData&&datefrom=${from}&dateto=${to}`);
+        return parseClassbook(r.text);
     }
     /** JSON call with __gsh. {"reload": …} → SessionExpired. */
     async call(path, args) {
