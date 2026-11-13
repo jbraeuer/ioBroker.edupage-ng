@@ -32,11 +32,22 @@ function describe(home) {
             dates.push(d);
     }
     dates.sort();
+    const days = (a, b) => (a && b ? Math.round((Date.parse(b + 'T12:00:00') - Date.parse(a + 'T12:00:00')) / 86400000) : null);
+    const homework = raw.filter((it) => it.typ === 'homework').map((it) => {
+        const data = (typeof it.data === 'string' ? (() => { try {
+            return JSON.parse(it.data);
+        }
+        catch {
+            return {};
+        } })() : (it.data ?? {}));
+        return { addedToDateDays: days(day(it.cas_pridania ?? it.timestamp), day(data.date)), subjectKnown: !!home?.dbi?.subjects?.[String(data.predmetid)], hasDescription: !!String(data.popis ?? '').trim() };
+    });
     const hints = [...Object.keys(h), ...Object.keys(home?.dbi ?? {}), ...fields].filter((k) => HINT.test(k));
     return {
         userhome, dbiTables,
         items: { count: raw.length, byType, fields: [...fields].sort(), dataFields: Object.fromEntries(Object.entries(dataFields).map(([k, v]) => [k, [...v].sort()])), dates: { from: dates[0] ?? '', to: dates[dates.length - 1] ?? '' } },
         hints: [...new Set(hints)].sort(),
+        homework,
     };
 }
 //# sourceMappingURL=structure.js.map

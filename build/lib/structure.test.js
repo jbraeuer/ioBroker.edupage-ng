@@ -11,7 +11,7 @@ const structure_1 = require("./structure");
     const s = (0, structure_1.describe)({
         userid: 'Rodic123', dbi: { subjects: { '1': { name: 'Mathe' } }, students: { '7': { firstname: 'Anna' } } },
         items: [
-            { typ: 'homework', text: secret, timestamp: '2026-11-12 10:00:00', data: JSON.stringify({ title: secret, subjectid: '1', date: '2026-11-13' }) },
+            { typ: 'homework', text: secret, cas_pridania: '2026-11-12 10:00:00', data: JSON.stringify({ title: secret, predmetid: '1', popis: secret, date: '2026-11-13' }) },
             { typ: 'homework', text: secret, timestamp: '2026-11-13 09:00:00', data: {} },
             { typ: 'sprava', text: secret, timestamp: '2026-11-10 08:00:00' },
         ],
@@ -20,7 +20,8 @@ const structure_1 = require("./structure");
     for (const bad of ['Mathe', 'Anna', 'Nr. 3', 'Rodic123'])
         strict_1.default.ok(!out.includes(bad), `leaks "${bad}"`);
     strict_1.default.deepEqual(s.items.byType, { homework: 2, sprava: 1 });
-    strict_1.default.deepEqual(s.items.dataFields.homework, ['date', 'subjectid', 'title']);
+    strict_1.default.deepEqual(s.items.dataFields.homework, ['date', 'popis', 'predmetid', 'title']);
+    strict_1.default.deepEqual(s.homework, [{ addedToDateDays: 1, subjectKnown: true, hasDescription: true }, { addedToDateDays: null, subjectKnown: false, hasDescription: false }]);
     strict_1.default.deepEqual(s.items.dates, { from: '2026-11-10', to: '2026-11-13' });
     strict_1.default.deepEqual(s.dbiTables, { subjects: 1, students: 1 });
     strict_1.default.equal(s.userhome.items, 'array(3)');

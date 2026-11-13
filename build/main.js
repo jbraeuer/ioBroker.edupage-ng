@@ -100,10 +100,10 @@ class EdupageNg extends utils.Adapter {
     }
     /** 0.0.1 had `<child>.tomorrow.*` and `canteen.tomorrow.*`; 0.0.2 replaces them with `next.*`. */
     async removeObsoleteTomorrow() {
-        for (const id of [...this.cfg.children.map((k) => `${k.alias}.tomorrow`), 'canteen.tomorrow']) {
-            if (await this.getObjectAsync(id))
-                await this.delObjectAsync(id, { recursive: true });
-        }
+        // by pattern: canteen.tomorrow.* were states without a channel object, so deleting the parent misses them
+        const old = await this.getForeignObjectsAsync(`${this.namespace}.*`);
+        for (const id of Object.keys(old).filter((i) => /\.tomorrow(\.|$)/.test(i)).sort().reverse())
+            await this.delForeignObjectAsync(id);
     }
     async createCanteenStates() {
         await this.setObjectNotExistsAsync('canteen', { type: 'channel', common: { name: 'Canteen' }, native: {} });

@@ -17,6 +17,8 @@ export interface Structure {
     userhome: Record<string, string>;
     dbiTables: Record<string, number>;
     items: { count: number; byType: Record<string, number>; fields: string[]; dataFields: Record<string, string[]>; dates: { from: string; to: string } };
+    /** per homework item: days from "added" (cas_pridania) to data.date, and whether predmetid is a known subject. Numbers/booleans only. */
+    homework: { addedToDateDays: number | null; subjectKnown: boolean; hasDescription: boolean }[];
     hints: string[];
 }
 
@@ -36,10 +38,16 @@ export function describe(home: UserHome | null): Structure {
         if (d) dates.push(d);
     }
     dates.sort();
+    const days = (a: string, b: string): number | null => (a && b ? Math.round((Date.parse(b + 'T12:00:00') - Date.parse(a + 'T12:00:00')) / 86400000) : null);
+    const homework = raw.filter((it) => it.typ === 'homework').map((it) => {
+        const data = (typeof it.data === 'string' ? (() => { try { return JSON.parse(it.data as string) as Record<string, unknown>; } catch { return {}; } })() : (it.data ?? {})) as Record<string, unknown>;
+        return { addedToDateDays: days(day(it.cas_pridania ?? it.timestamp), day(data.date)), subjectKnown: !!home?.dbi?.subjects?.[String(data.predmetid)], hasDescription: !!String(data.popis ?? '').trim() };
+    });
     const hints = [...Object.keys(h), ...Object.keys(home?.dbi ?? {}), ...fields].filter((k) => HINT.test(k));
     return {
         userhome, dbiTables,
         items: { count: raw.length, byType, fields: [...fields].sort(), dataFields: Object.fromEntries(Object.entries(dataFields).map(([k, v]) => [k, [...v].sort()])), dates: { from: dates[0] ?? '', to: dates[dates.length - 1] ?? '' } },
         hints: [...new Set(hints)].sort(),
+        homework,
     };
 }
