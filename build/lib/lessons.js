@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.periodLabel = periodLabel;
 exports.toLessons = toLessons;
 exports.lastEnd = lastEnd;
 exports.toText = toText;
@@ -19,6 +20,17 @@ const name = (dbi, table, id) => {
     return row.name || row.short || '';
 };
 const list = (v) => (Array.isArray(v) ? v : v === undefined || v === null || v === '' ? [] : [v]);
+/** The school's lesson number(s) for a timetable entry: uniperiod is an id into dbi.periods (live 2026-11-13: id "2" is
+ *  named "1", id "1" is "0."); a double lesson (durationperiods 2) spans this and the following period → "1–2". */
+function periodLabel(dbi, uniperiod, duration) {
+    const rows = Object.values(dbi?.periods ?? {}).sort((a, b) => Number(a._oind ?? a.id) - Number(b._oind ?? b.id));
+    const i = rows.findIndex((r) => String(r.id) === String(uniperiod));
+    if (i < 0)
+        return '';
+    const nm = (r) => String(r?.short ?? r?.name ?? '').replace(/\.$/, '');
+    const first = nm(rows[i]), last = duration > 1 ? nm(rows[i + duration - 1]) : '';
+    return last && last !== first ? `${first}–${last}` : first;
+}
 function toLessons(items, home) {
     const dbi = home?.dbi;
     return items
@@ -27,9 +39,12 @@ function toLessons(items, home) {
         const removed = !!it.removed || it.type === 'absent';
         const event = it.type === 'event';
         const noteParts = [flags.dp0?.note_wd, event ? flags.event?.name || String(it.name ?? '') : ''].filter(Boolean);
+        const periods = Math.max(1, Number(it.durationperiods) || 1);
         return {
             date: String(it.date ?? ''),
             period: String(it.uniperiod ?? it.period ?? ''),
+            periodLabel: periodLabel(dbi, it.uniperiod ?? it.period, periods),
+            periods,
             start: String(it.starttime ?? ''),
             end: String(it.endtime ?? ''),
             subject: name(dbi, 'subjects', it.subjectid) || (event ? String(it.name ?? '') : ''),

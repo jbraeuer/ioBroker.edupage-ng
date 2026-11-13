@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "news": {
+      "0.0.10": { "en": "Lessons: periodLabel (the school's own lesson number from dbi.periods, \"1–2\" for a double lesson) and periods (durationperiods).", "de": "Stunden: periodLabel (Stundennummer der Schule aus dbi.periods, \"1–2\" bei Doppelstunden) und periods (durationperiods)." },
       "0.0.9": { "en": "Lunch order per child (<child>.today|next.lunch).", "de": "Essensbestellung je Kind (<child>.today|next.lunch)." },
       "0.0.8": { "en": "Removed the never-filled .html states (render HTML in VIS from the JSON/text states).", "de": "Nie befüllte .html-States entfernt (HTML in VIS aus den JSON-/Text-States erzeugen)." },
       "0.0.7": { "en": "M4: canteen (lunch menus today + next school day, read-only).", "de": "M4: Mensa (Mittagessen heute + nächster Schultag, nur lesend)." },

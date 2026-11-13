@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayLabel, enrich, homeworkDue, homeworkGiven, nextSchoolDay, openHomework, type Lesson } from './lessons';
+import { dayLabel, enrich, periodLabel, toLessons, homeworkDue, homeworkGiven, nextSchoolDay, openHomework, type Lesson } from './lessons';
 import type { ClassbookLesson, Homework } from './edupage';
 
-const l = (date: string): Lesson => ({ date, period: '1', start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
+const l = (date: string): Lesson => ({ date, period: '1', periodLabel: '1', periods: 1, start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
 
 test('next school day: skips the weekend and days without lessons', () => {
     // Friday 2026-11-13 → Monday 2026-11-16
@@ -77,4 +77,21 @@ test('open homework: due today or later, soonest first, past ones dropped', () =
         ['Aufgabe today', 'Englisch', '2026-11-13'], ['Aufgabe soon', 'Mathematik', '2026-11-18'], ['Aufgabe late', 'Mathematik', '2026-11-20'],
     ]);
     assert.deepEqual(openHomework([], '2026-11-13', HOME as never), []);
+});
+
+test('period label: the school\'s names from dbi.periods (id 2 = "1"), double lessons "1–2", unknown → ""', () => {
+    // shape as seen live 2026-11-13 (structure only): id 1 = "0.", id 2 = "1", …
+    const dbi = { periods: { '1': { id: '1', name: '0.', short: '0.', _oind: 1 }, '2': { id: '2', name: '1', short: '1', _oind: 2 },
+        '3': { id: '3', name: '2', short: '2', _oind: 3 }, '4': { id: '4', name: '3', short: '3', _oind: 4 }, '5': { id: '5', name: '4', short: '4', _oind: 5 },
+        '6': { id: '6', name: '5', short: '5', _oind: 6 } } };
+    assert.equal(periodLabel(dbi, '2', 2), '1–2');
+    assert.equal(periodLabel(dbi, '4', 2), '3–4');
+    assert.equal(periodLabel(dbi, '6', 1), '5');
+    assert.equal(periodLabel(dbi, '1', 1), '0');
+    assert.equal(periodLabel(dbi, '6', 2), '5');        // runs past the table → only the first
+    assert.equal(periodLabel(dbi, '99', 1), '');
+    assert.equal(periodLabel(undefined, '2', 1), '');
+    const ls = toLessons([{ date: '2026-11-13', uniperiod: '2', starttime: '08:20', endtime: '10:15', durationperiods: 2, subjectid: '1', type: 'card' },
+        { date: '2026-11-13', uniperiod: '6', starttime: '12:15', endtime: '13:00', subjectid: '2', type: 'card' }], { dbi });
+    assert.deepEqual(ls.map((x) => [x.periodLabel, x.periods]), [['1–2', 2], ['5', 1]]);
 });

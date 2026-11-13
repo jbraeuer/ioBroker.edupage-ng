@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const strict_1 = __importDefault(require("node:assert/strict"));
 const lessons_1 = require("./lessons");
-const l = (date) => ({ date, period: '1', start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
+const l = (date) => ({ date, period: '1', periodLabel: '1', periods: 1, start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
 (0, node_test_1.test)('next school day: skips the weekend and days without lessons', () => {
     // Friday 2026-11-13 → Monday 2026-11-16
     strict_1.default.equal((0, lessons_1.nextSchoolDay)([l('2026-11-13'), l('2026-11-16'), l('2026-11-17')], '2026-11-13'), '2026-11-16');
@@ -69,5 +69,21 @@ const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'E
         ['Aufgabe today', 'Englisch', '2026-11-13'], ['Aufgabe soon', 'Mathematik', '2026-11-18'], ['Aufgabe late', 'Mathematik', '2026-11-20'],
     ]);
     strict_1.default.deepEqual((0, lessons_1.openHomework)([], '2026-11-13', HOME), []);
+});
+(0, node_test_1.test)('period label: the school\'s names from dbi.periods (id 2 = "1"), double lessons "1–2", unknown → ""', () => {
+    // shape as seen live 2026-11-13 (structure only): id 1 = "0.", id 2 = "1", …
+    const dbi = { periods: { '1': { id: '1', name: '0.', short: '0.', _oind: 1 }, '2': { id: '2', name: '1', short: '1', _oind: 2 },
+            '3': { id: '3', name: '2', short: '2', _oind: 3 }, '4': { id: '4', name: '3', short: '3', _oind: 4 }, '5': { id: '5', name: '4', short: '4', _oind: 5 },
+            '6': { id: '6', name: '5', short: '5', _oind: 6 } } };
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '2', 2), '1–2');
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '4', 2), '3–4');
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '6', 1), '5');
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '1', 1), '0');
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '6', 2), '5'); // runs past the table → only the first
+    strict_1.default.equal((0, lessons_1.periodLabel)(dbi, '99', 1), '');
+    strict_1.default.equal((0, lessons_1.periodLabel)(undefined, '2', 1), '');
+    const ls = (0, lessons_1.toLessons)([{ date: '2026-11-13', uniperiod: '2', starttime: '08:20', endtime: '10:15', durationperiods: 2, subjectid: '1', type: 'card' },
+        { date: '2026-11-13', uniperiod: '6', starttime: '12:15', endtime: '13:00', subjectid: '2', type: 'card' }], { dbi });
+    strict_1.default.deepEqual(ls.map((x) => [x.periodLabel, x.periods]), [['1–2', 2], ['5', 1]]);
 });
 //# sourceMappingURL=lessons.test.js.map
