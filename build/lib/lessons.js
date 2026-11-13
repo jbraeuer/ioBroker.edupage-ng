@@ -5,6 +5,7 @@ exports.lastEnd = lastEnd;
 exports.toText = toText;
 exports.enrich = enrich;
 exports.homeworkDue = homeworkDue;
+exports.openHomework = openHomework;
 exports.homeworkGiven = homeworkGiven;
 exports.nextSchoolDay = nextSchoolDay;
 exports.dayLabel = dayLabel;
@@ -79,6 +80,10 @@ function enrich(lessons, register, homework) {
 /** Homework that is due on `date`, with the subject name. */
 function homeworkDue(homework, date, home) {
     return homework.filter((h) => date && h.due === date).map((h) => toEntry(h, home));
+}
+/** All homework still due: due date today or later, soonest first (Q7, Jens 2026-11-13). */
+function openHomework(homework, today, home) {
+    return homework.filter((h) => h.due && h.due >= today).sort((a, b) => (a.due + a.given).localeCompare(b.due + b.given)).map((h) => toEntry(h, home));
 }
 /** Homework given on `date`. */
 function homeworkGiven(homework, date, home) {

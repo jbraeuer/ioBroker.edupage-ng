@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "news": {
+      "0.0.6": { "en": "openHomework per child: everything due today or later.", "de": "openHomework je Kind: alles, was ab heute fällig ist." },
       "0.0.5": { "en": "Double lessons get the topics of both periods.", "de": "Doppelstunden bekommen die Themen beider Stunden." },
       "0.0.4": { "en": "Lesson topic (class register) and homework per lesson; homework given / due per day.", "de": "Unterrichtsthema (Klassenbuch) und Hausaufgaben je Stunde; Hausaufgaben aufgegeben / fällig je Tag." },
       "0.0.3": { "en": "Remove leftover canteen.tomorrow states; homework date probe in debug.*.", "de": "Alte canteen.tomorrow-States entfernt; Hausaufgaben-Datumsprobe in debug.*." },

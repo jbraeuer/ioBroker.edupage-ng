@@ -63,4 +63,11 @@ const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'E
     // same topic in both periods → shown once
     strict_1.default.equal((0, lessons_1.enrich)([dbl], [reg('2026-11-13', '10:20', '11', 'Gleich'), reg('2026-11-13', '11:25', '11', 'Gleich')], [])[0].topic, 'Gleich');
 });
+(0, node_test_1.test)('open homework: due today or later, soonest first, past ones dropped', () => {
+    const list = [hw('late', '11', '2026-11-12', '2026-11-20'), hw('past', '12', '2026-11-05', '2026-11-10'), hw('today', '12', '2026-11-11', '2026-11-13'), hw('soon', '11', '2026-11-13', '2026-11-18')];
+    strict_1.default.deepEqual((0, lessons_1.openHomework)(list, '2026-11-13', HOME).map((x) => [x.title, x.subject, x.due]), [
+        ['Aufgabe today', 'Englisch', '2026-11-13'], ['Aufgabe soon', 'Mathematik', '2026-11-18'], ['Aufgabe late', 'Mathematik', '2026-11-20'],
+    ]);
+    strict_1.default.deepEqual((0, lessons_1.openHomework)([], '2026-11-13', HOME), []);
+});
 //# sourceMappingURL=lessons.test.js.map

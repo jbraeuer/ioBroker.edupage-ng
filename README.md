@@ -22,6 +22,7 @@ Read-only EduPage adapter for parents: **today's and the next school day's timet
 | lesson fields `topic`, `homework` | lesson topic ("Lehrstoff") from the class register; titles of homework given in that lesson |
 | `<child>.today.homework` / `.next.homework` | homework given on that day (JSON) |
 | `<child>.today.homeworkDue` / `.next.homeworkDue` | homework due on that day (JSON) |
+| `<child>.openHomework` | all homework due today or later, soonest first (JSON: subject, title, details, given, due) |
 | `<child>.today.text` / `.html` | ready to show (VIS) |
 | `canteen.today.menu` / `.text` / `.html` (and `next`) | canteen |
 

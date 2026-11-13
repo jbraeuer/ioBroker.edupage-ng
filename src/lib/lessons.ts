@@ -94,6 +94,11 @@ export function homeworkDue(homework: Homework[], date: string, home: UserHome |
     return homework.filter((h) => date && h.due === date).map((h) => toEntry(h, home));
 }
 
+/** All homework still due: due date today or later, soonest first (Q7, Jens 2026-11-13). */
+export function openHomework(homework: Homework[], today: string, home: UserHome | null): HomeworkEntry[] {
+    return homework.filter((h) => h.due && h.due >= today).sort((a, b) => (a.due + a.given).localeCompare(b.due + b.given)).map((h) => toEntry(h, home));
+}
+
 /** Homework given on `date`. */
 export function homeworkGiven(homework: Homework[], date: string, home: UserHome | null): HomeworkEntry[] {
     return homework.filter((h) => date && h.given === date).map((h) => toEntry(h, home));

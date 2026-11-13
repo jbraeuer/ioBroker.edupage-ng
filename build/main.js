@@ -96,6 +96,7 @@ class EdupageNg extends utils.Adapter {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
         }
+        await this.setObjectNotExistsAsync(`${k.alias}.openHomework`, { type: 'state', common: { name: 'Open homework: due today or later, soonest first (JSON list)', role: 'json', type: 'string', read: true, write: false, def: '[]' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.date`, { type: 'state', common: { name: 'Date of the next school day (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
     }
@@ -196,6 +197,7 @@ class EdupageNg extends utils.Adapter {
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
             const { register, homework } = await this.extras(s, k, today, next || today);
             const lessons = (0, lessons_1.enrich)(plain, register, homework);
+            await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify((0, lessons_1.openHomework)(homework, today, s.userhome)), true);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
             await this.setStateAsync(`${k.alias}.next.label`, (0, lessons_1.dayLabel)(next, today), true);
             for (const [day, date] of [['today', today], ['next', next]]) {

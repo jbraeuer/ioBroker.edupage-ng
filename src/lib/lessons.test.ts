@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayLabel, enrich, homeworkDue, homeworkGiven, nextSchoolDay, type Lesson } from './lessons';
+import { dayLabel, enrich, homeworkDue, homeworkGiven, nextSchoolDay, openHomework, type Lesson } from './lessons';
 import type { ClassbookLesson, Homework } from './edupage';
 
 const l = (date: string): Lesson => ({ date, period: '1', start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
@@ -69,4 +69,12 @@ test('enrich: double lesson (one timetable entry, two register entries) gets bot
     assert.deepEqual(out.map((x) => x.topic), ['Teil 1 / Teil 2', 'Anderes']);
     // same topic in both periods → shown once
     assert.equal(enrich([dbl], [reg('2026-11-13', '10:20', '11', 'Gleich'), reg('2026-11-13', '11:25', '11', 'Gleich')], [])[0].topic, 'Gleich');
+});
+
+test('open homework: due today or later, soonest first, past ones dropped', () => {
+    const list = [hw('late', '11', '2026-11-12', '2026-11-20'), hw('past', '12', '2026-11-05', '2026-11-10'), hw('today', '12', '2026-11-11', '2026-11-13'), hw('soon', '11', '2026-11-13', '2026-11-18')];
+    assert.deepEqual(openHomework(list, '2026-11-13', HOME as never).map((x) => [x.title, x.subject, x.due]), [
+        ['Aufgabe today', 'Englisch', '2026-11-13'], ['Aufgabe soon', 'Mathematik', '2026-11-18'], ['Aufgabe late', 'Mathematik', '2026-11-20'],
+    ]);
+    assert.deepEqual(openHomework([], '2026-11-13', HOME as never), []);
 });

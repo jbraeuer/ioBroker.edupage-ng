@@ -11,7 +11,7 @@ import * as utils from '@iobroker/adapter-core';
 
 import { Config, Child, validateConfig } from './lib/config';
 import { ClassbookLesson, EdupageSession, Homework, SessionExpired } from './lib/edupage';
-import { dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, toLessons, toText } from './lib/lessons';
+import { dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText } from './lib/lessons';
 import { describe } from './lib/structure';
 
 const HOUR = 3600000;
@@ -65,6 +65,7 @@ export class EdupageNg extends utils.Adapter {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
         }
+        await this.setObjectNotExistsAsync(`${k.alias}.openHomework`, { type: 'state', common: { name: 'Open homework: due today or later, soonest first (JSON list)', role: 'json', type: 'string', read: true, write: false, def: '[]' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.date`, { type: 'state', common: { name: 'Date of the next school day (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
     }
@@ -161,6 +162,7 @@ export class EdupageNg extends utils.Adapter {
             const next = nextSchoolDay(plain, today);
             const { register, homework } = await this.extras(s, k, today, next || today);
             const lessons = enrich(plain, register, homework);
+            await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify(openHomework(homework, today, s.userhome)), true);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
             await this.setStateAsync(`${k.alias}.next.label`, dayLabel(next, today), true);
             for (const [day, date] of [['today', today], ['next', next]] as const) {
