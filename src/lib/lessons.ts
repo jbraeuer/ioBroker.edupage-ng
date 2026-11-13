@@ -128,6 +128,11 @@ export function nextSchoolDay(lessons: Lesson[], today: string): string {
     return lessons.map((l) => l.date).filter((d) => d > today).sort()[0] ?? '';
 }
 
+/** The school day after `next` (the one after the next school day), or '' if `next` is '' or nothing follows in the range. */
+export function afterSchoolDay(lessons: Lesson[], next: string): string {
+    return next ? nextSchoolDay(lessons, next) : '';
+}
+
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 const parse = (d: string): Date => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, 12); };   // noon: DST-safe
 

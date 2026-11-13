@@ -24,8 +24,10 @@ Read-only EduPage adapter for parents: **today's and the next school day's timet
 | `<child>.today.homeworkDue` / `.next.homeworkDue` | homework due on that day (JSON) |
 | `<child>.openHomework` | all homework due today or later, soonest first (JSON: subject, title, details, given, due) |
 | `<child>.today.text` / `.next.text` | timetable as text, one line per lesson (topic after " – ", homework after " · HA: ") |
-| `<child>.today.lunch` / `.next.lunch` | this child's order: JSON `{code, label, dish}`, `''` if none |
-| `canteen.today.menu` / `.text` (and `next`) | lunch: JSON `{date, cooking, from, to, menus: [{code, label, dish, allergens}]}`; text `S: …` per menu, `kein Mittagessen` if not cooking |
+| `<child>.today.lunch` / `.next.lunch` / `.after.lunch` | this child's order: JSON `{code, label, dish}`, `''` if none |
+| `<child>.after.lessons` / `.changes` / `.text` / `.end` / `.homework` / `.homeworkDue` | the school day after next, same format as `next.*` (`after` = the first school day after `next`; computed every day) |
+| `<child>.after.date` / `.after.label` | date of the school day after next (YYYY-MM-DD, `''` if none), button label ("Morgen" or the weekday) |
+| `canteen.today.menu` / `.text` (and `next`, `after`) | lunch: JSON `{date, cooking, from, to, menus: [{code, label, dish, allergens}]}`; text `S: …` per menu, `kein Mittagessen` if not cooking. `after` = the first school day after the canteen's `next` |
 
 ## Roadmap
 M0 skeleton ✅ · M1 login + session reuse + one child's timetable · M2 two accounts, several children · M3 substitutions · M4 canteen · M5 VIS HTML, i18n, release 0.1.0

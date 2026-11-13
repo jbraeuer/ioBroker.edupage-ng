@@ -20,6 +20,18 @@ const l = (date) => ({ date, period: '1', periodLabel: '1', periods: 1, start: '
 (0, node_test_1.test)('next school day: a day where every lesson is cancelled still counts (the panel shows "fällt aus")', () => {
     strict_1.default.equal((0, lessons_1.nextSchoolDay)([{ ...l('2026-11-16'), cancelled: true }], '2026-11-13'), '2026-11-16');
 });
+(0, node_test_1.test)('after school day: the school day after next (Sat → Mon + Tue), skips weekends and empty days', () => {
+    // called on Saturday 2026-11-14: next = Monday 16th, after = Tuesday 17th
+    strict_1.default.equal((0, lessons_1.afterSchoolDay)([l('2026-11-16'), l('2026-11-17')], '2026-11-16'), '2026-11-17');
+    // Tuesday is a holiday (no lessons) → Wednesday
+    strict_1.default.equal((0, lessons_1.afterSchoolDay)([l('2026-11-16'), l('2026-11-18')], '2026-11-16'), '2026-11-18');
+    // Friday → Monday → Tuesday, across the weekend
+    strict_1.default.equal((0, lessons_1.afterSchoolDay)([l('2026-11-13'), l('2026-11-16'), l('2026-11-17')], '2026-11-16'), '2026-11-17');
+    // no day after next in the range → ''
+    strict_1.default.equal((0, lessons_1.afterSchoolDay)([l('2026-11-16')], '2026-11-16'), '');
+    // no next school day at all → '' (must not fall back to the first lesson day)
+    strict_1.default.equal((0, lessons_1.afterSchoolDay)([l('2026-11-16'), l('2026-11-17')], ''), '');
+});
 (0, node_test_1.test)('day label: "Morgen" for the next day, else the weekday; DST change in between is fine', () => {
     strict_1.default.equal((0, lessons_1.dayLabel)('2026-11-17', '2026-11-16'), 'Morgen');
     strict_1.default.equal((0, lessons_1.dayLabel)('2026-11-16', '2026-11-13'), 'Montag');

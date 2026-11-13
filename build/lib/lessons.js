@@ -9,6 +9,7 @@ exports.homeworkDue = homeworkDue;
 exports.openHomework = openHomework;
 exports.homeworkGiven = homeworkGiven;
 exports.nextSchoolDay = nextSchoolDay;
+exports.afterSchoolDay = afterSchoolDay;
 exports.dayLabel = dayLabel;
 exports.canteenText = canteenText;
 const name = (dbi, table, id) => {
@@ -109,6 +110,10 @@ const toEntry = (h, home) => ({ subject: name(home?.dbi, 'subjects', h.subjectId
 /** The first date after `today` (YYYY-MM-DD) that has at least one lesson, or '' if none in the range. */
 function nextSchoolDay(lessons, today) {
     return lessons.map((l) => l.date).filter((d) => d > today).sort()[0] ?? '';
+}
+/** The school day after `next` (the one after the next school day), or '' if `next` is '' or nothing follows in the range. */
+function afterSchoolDay(lessons, next) {
+    return next ? nextSchoolDay(lessons, next) : '';
 }
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 const parse = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, 12); }; // noon: DST-safe

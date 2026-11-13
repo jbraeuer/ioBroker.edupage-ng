@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayLabel, enrich, periodLabel, toLessons, homeworkDue, homeworkGiven, nextSchoolDay, openHomework, type Lesson } from './lessons';
+import { afterSchoolDay, dayLabel, enrich, periodLabel, toLessons, homeworkDue, homeworkGiven, nextSchoolDay, openHomework, type Lesson } from './lessons';
 import type { ClassbookLesson, Homework } from './edupage';
 
 const l = (date: string): Lesson => ({ date, period: '1', periodLabel: '1', periods: 1, start: '08:00', end: '08:45', subject: 'M', teacher: '', room: '', cancelled: false, changed: false, note: '', subjectId: '11', topic: '', homework: [] });
@@ -18,6 +18,19 @@ test('next school day: skips the weekend and days without lessons', () => {
 
 test('next school day: a day where every lesson is cancelled still counts (the panel shows "fällt aus")', () => {
     assert.equal(nextSchoolDay([{ ...l('2026-11-16'), cancelled: true }], '2026-11-13'), '2026-11-16');
+});
+
+test('after school day: the school day after next (Sat → Mon + Tue), skips weekends and empty days', () => {
+    // called on Saturday 2026-11-14: next = Monday 16th, after = Tuesday 17th
+    assert.equal(afterSchoolDay([l('2026-11-16'), l('2026-11-17')], '2026-11-16'), '2026-11-17');
+    // Tuesday is a holiday (no lessons) → Wednesday
+    assert.equal(afterSchoolDay([l('2026-11-16'), l('2026-11-18')], '2026-11-16'), '2026-11-18');
+    // Friday → Monday → Tuesday, across the weekend
+    assert.equal(afterSchoolDay([l('2026-11-13'), l('2026-11-16'), l('2026-11-17')], '2026-11-16'), '2026-11-17');
+    // no day after next in the range → ''
+    assert.equal(afterSchoolDay([l('2026-11-16')], '2026-11-16'), '');
+    // no next school day at all → '' (must not fall back to the first lesson day)
+    assert.equal(afterSchoolDay([l('2026-11-16'), l('2026-11-17')], ''), '');
 });
 
 test('day label: "Morgen" for the next day, else the weekday; DST change in between is fine', () => {

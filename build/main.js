@@ -49,14 +49,16 @@ const edupage_1 = require("./lib/edupage");
 const lessons_1 = require("./lib/lessons");
 const structure_1 = require("./lib/structure");
 const HOUR = 3600000;
-const LOOKAHEAD_DAYS = 10; // the next school day is searched in today+1 … today+10 (weekend + a holiday week)
+// next and after are searched in today+1 … today+14 (weekend + a holiday week, and the school day after next still fits)
+const LOOKAHEAD_DAYS = 14;
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 class EdupageNg extends utils.Adapter {
     timer;
     blocked = false; // true after a login error until control.retry
     sessions = new Map();
-    nextSchoolDay = ''; // from the first child's timetable in this poll; the canteen uses it
-    canteenWeek = []; // menus of this poll (same for all children), from the first child's fetch
+    nextSchoolDay = ''; // earliest next school day of the children in this poll; the canteen uses it
+    schoolDays = new Set(); // every lesson date of all children in this poll; the canteen's "after" comes from it
+    canteenWeek = []; // menus of this poll (same for all children), merged from the children's fetches
     constructor(options = {}) {
         super({ ...options, name: 'edupage-ng' });
         this.on('ready', this.onReady.bind(this));
@@ -88,7 +90,7 @@ class EdupageNg extends utils.Adapter {
     }
     async createChildStates(k) {
         await this.setObjectNotExistsAsync(k.alias, { type: 'device', common: { name: k.name }, native: {} });
-        for (const day of ['today', 'next']) {
+        for (const day of ['today', 'next', 'after']) {
             await this.setObjectNotExistsAsync(`${k.alias}.${day}`, { type: 'channel', common: { name: day }, native: {} });
             for (const [id, role, name] of [
                 ['lessons', 'json', 'Lessons (JSON list)'], ['changes', 'json', 'Substitutions / changes (JSON list)'],
@@ -99,11 +101,13 @@ class EdupageNg extends utils.Adapter {
             }
         }
         await this.setObjectNotExistsAsync(`${k.alias}.openHomework`, { type: 'state', common: { name: 'Open homework: due today or later, soonest first (JSON list)', role: 'json', type: 'string', read: true, write: false, def: '[]' }, native: {} });
-        for (const day of ['today', 'next']) {
+        for (const day of ['today', 'next', 'after']) {
             await this.setObjectNotExistsAsync(`${k.alias}.${day}.lunch`, { type: 'state', common: { name: `${day}: this child's lunch order (JSON {code, label, dish}, '' = none)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         }
         await this.setObjectNotExistsAsync(`${k.alias}.next.date`, { type: 'state', common: { name: 'Date of the next school day (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.setObjectNotExistsAsync(`${k.alias}.next.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
+        await this.setObjectNotExistsAsync(`${k.alias}.after.date`, { type: 'state', common: { name: 'Date of the school day after next (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
+        await this.setObjectNotExistsAsync(`${k.alias}.after.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday of the school day after next', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
     }
     /** 0.0.1 had `<child>.tomorrow.*` and `canteen.tomorrow.*` (0.0.2: `next.*`); the `.html` states were never filled (0.0.8: removed). */
     async removeObsoleteTomorrow() {
@@ -114,7 +118,7 @@ class EdupageNg extends utils.Adapter {
     }
     async createCanteenStates() {
         await this.setObjectNotExistsAsync('canteen', { type: 'channel', common: { name: 'Canteen' }, native: {} });
-        for (const day of ['today', 'next']) {
+        for (const day of ['today', 'next', 'after']) {
             for (const [id, role, name] of [['menu', 'json', 'Menu (JSON)'], ['text', 'text', 'Menu as text']]) {
                 await this.setObjectNotExistsAsync(`canteen.${day}.${id}`, { type: 'state', common: { name: `${day}: ${name}`, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
@@ -130,6 +134,7 @@ class EdupageNg extends utils.Adapter {
         if (this.blocked)
             return;
         this.nextSchoolDay = '';
+        this.schoolDays = new Set();
         this.canteenWeek = [];
         try {
             for (const acc of [1, 2]) {
@@ -203,15 +208,20 @@ class EdupageNg extends utils.Adapter {
                 await s.switchChild(st.id);
             const plain = (0, lessons_1.toLessons)(await s.timetable(st.id, today, until), s.userhome);
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
+            const after = (0, lessons_1.afterSchoolDay)(plain, next);
             if (next && (!this.nextSchoolDay || next < this.nextSchoolDay))
                 this.nextSchoolDay = next;
-            const { register, homework } = await this.extras(s, k, today, next || today);
+            for (const x of plain)
+                this.schoolDays.add(x.date);
+            const { register, homework } = await this.extras(s, k, today, after || next || today);
             const lessons = (0, lessons_1.enrich)(plain, register, homework);
             await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify((0, lessons_1.openHomework)(homework, today, s.userhome)), true);
-            await this.childLunch(s, k, today, next);
+            await this.childLunch(s, k, today, next, after);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
             await this.setStateAsync(`${k.alias}.next.label`, (0, lessons_1.dayLabel)(next, today), true);
-            for (const [day, date] of [['today', today], ['next', next]]) {
+            await this.setStateAsync(`${k.alias}.after.date`, after, true);
+            await this.setStateAsync(`${k.alias}.after.label`, (0, lessons_1.dayLabel)(after, today), true);
+            for (const [day, date] of [['today', today], ['next', next], ['after', after]]) {
                 const l = date ? lessons.filter((x) => x.date === date) : [];
                 await this.setStateAsync(`${k.alias}.${day}.lessons`, JSON.stringify(l), true);
                 await this.setStateAsync(`${k.alias}.${day}.changes`, JSON.stringify(l.filter((x) => x.cancelled || x.changed)), true);
@@ -226,32 +236,39 @@ class EdupageNg extends utils.Adapter {
      * The menu page carries the CURRENT child's order, so it is fetched per child (right after the child switch for the
      * timetable). Optional: failures only warn. The menus themselves are the same for all children → kept for pollCanteen.
      */
-    async childLunch(s, k, today, next) {
+    async childLunch(s, k, today, next, after) {
         let week = [];
         try {
             week = await s.menuWeek(today);
             if (next && !week.some((d) => d.date === next))
                 week = week.concat(await s.menuWeek(next)); // next school day in another week
+            if (after && !week.some((d) => d.date === after))
+                week = week.concat(await s.menuWeek(after)); // school day after next, same
         }
         catch (e) {
             this.log.warn(`${k.alias}: canteen not available (${e.message})`);
             return;
         }
-        if (!this.canteenWeek.length)
-            this.canteenWeek = week;
-        for (const [day, date] of [['today', today], ['next', next]]) {
+        for (const d of week)
+            if (!this.canteenWeek.some((x) => x.date === d.date))
+                this.canteenWeek.push(d); // all children's weeks, one entry per day
+        for (const [day, date] of [['today', today], ['next', next], ['after', after]]) {
             const l = week.find((d) => d.date === date);
             const m = l && l.cooking && l.ordered ? l.menus.find((x) => x.code === l.ordered) : undefined;
             await this.setStateAsync(`${k.alias}.${day}.lunch`, m ? JSON.stringify({ code: m.code, label: m.label, dish: m.dish }) : '', true);
         }
     }
-    /** Canteen (same for the whole school, verified live 2026-11-13): today + next school day, from the children's fetch. */
+    /**
+     * Canteen (same for the whole school, verified live 2026-11-13): today, next and after. The after day is the first
+     * school day after the canteen's next across all children (not just the first child's), so the menu comes from the merged weeks.
+     */
     async pollCanteen() {
         const today = ymd(new Date()), next = this.nextSchoolDay;
+        const after = [...this.schoolDays].filter((d) => next && d > next).sort()[0] ?? '';
         const week = this.canteenWeek;
         if (!week.length)
             return;
-        for (const [day, date] of [['today', today], ['next', next]]) {
+        for (const [day, date] of [['today', today], ['next', next], ['after', after]]) {
             const lunch = week.find((d) => d.date === date) ?? null;
             // shared state: without the order (that is per child, in <child>.<day>.lunch)
             await this.setStateAsync(`canteen.${day}.menu`, lunch ? JSON.stringify({ ...lunch, ordered: undefined }) : '', true);
