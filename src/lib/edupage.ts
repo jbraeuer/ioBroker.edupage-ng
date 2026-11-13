@@ -22,7 +22,12 @@ export interface Homework { id: string; subjectId: string; title: string; detail
 export interface ClassbookLesson { date: string; start: string; period: string; subjectId: string; topic: string; homeworkIds: string[] }
 
 /** Lunch of one day (docs/protocol.md §7). `menus` = the choosable dishes, e.g. S = Standard-Essen, W = Wahl-Essen. */
-export interface Lunch { date: string; cooking: boolean; from: string; to: string; menus: { code: string; label: string; dish: string; allergens: string }[] }
+export interface Lunch {
+    date: string; cooking: boolean; from: string; to: string; menus: { code: string; label: string; dish: string; allergens: string }[];
+    /** The CURRENT child's order (after switchChild): menu code (e.g. "S"), or '' if none. evidencia.obj A/B/C = menu 1/2/3
+     *  (confirmed by Jens in the app 2026-11-13: A = Standard, B = Wahl-Essen). evidencia.stav is not interpreted. */
+    ordered: string;
+}
 
 const d10 = (v: unknown): string => String(v ?? '').slice(0, 10);
 
@@ -47,7 +52,9 @@ export function parseMenuPage(html: string, school: string): Lunch[] | null {
             const code = String(r.menusStr ?? '').replace(/[:\s]+$/, '').trim();
             return { code, label: label(code), dish: String(r.nazov).trim(), allergens: String(r.alergenyStr ?? '').trim() };
         });
-        out.push({ date, cooking: m.isCooking !== false && menus.length > 0, from: String(m.vydaj_od ?? ''), to: String(m.vydaj_do ?? ''), menus });
+        const obj = String((m.evidencia as { obj?: unknown } | undefined)?.obj ?? '').trim().toUpperCase();
+        const ordered = /^[A-Z]$/.test(obj) ? String(names[String(obj.charCodeAt(0) - 64)]?.skratka ?? '') : '';
+        out.push({ date, cooking: m.isCooking !== false && menus.length > 0, from: String(m.vydaj_od ?? ''), to: String(m.vydaj_do ?? ''), menus, ordered });
     }
     return out.sort((a, b) => a.date.localeCompare(b.date));
 }

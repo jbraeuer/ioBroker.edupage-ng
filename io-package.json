@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "news": {
+      "0.0.9": { "en": "Lunch order per child (<child>.today|next.lunch).", "de": "Essensbestellung je Kind (<child>.today|next.lunch)." },
       "0.0.8": { "en": "Removed the never-filled .html states (render HTML in VIS from the JSON/text states).", "de": "Nie befüllte .html-States entfernt (HTML in VIS aus den JSON-/Text-States erzeugen)." },
       "0.0.7": { "en": "M4: canteen (lunch menus today + next school day, read-only).", "de": "M4: Mensa (Mittagessen heute + nächster Schultag, nur lesend)." },
       "0.0.6": { "en": "openHomework per child: everything due today or later.", "de": "openHomework je Kind: alles, was ab heute fällig ist." },

@@ -112,8 +112,11 @@ class FakeEdupage {
                 const x = new Date(mon);
                 x.setDate(mon.getDate() + i);
                 const k = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+                // order of the CURRENT child: 501 takes W (B) on Mondays, everybody else S (A); 502 has none on Fridays
+                const obj = this.currentChild === '501' && i === 0 ? 'B' : this.currentChild === '502' && i === 4 ? '' : 'A';
                 days[k] = { '2': k === '2026-11-18' ? { isCooking: false, rows: [], nazvyMenu: names } : {
                         isCooking: true, vydaj_od: '11:55', vydaj_do: '13:30', nazvyMenu: names, nazov: 'whole text',
+                        evidencia: obj ? { obj, stav: i === 0 ? 'B' : 'A', pov_obj: 'A' } : undefined,
                         rows: [{ nazov: '' }, { nazov: `Nudeln ${k}`, menusStr: 'S: ', alergenyStr: '1, 3' }, { nazov: `Gemüse ${k}`, menusStr: 'W: ' }, null, { nazov: '' }]
                     } };
             }

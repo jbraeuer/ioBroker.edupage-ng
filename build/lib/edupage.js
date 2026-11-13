@@ -60,7 +60,9 @@ function parseMenuPage(html, school) {
             const code = String(r.menusStr ?? '').replace(/[:\s]+$/, '').trim();
             return { code, label: label(code), dish: String(r.nazov).trim(), allergens: String(r.alergenyStr ?? '').trim() };
         });
-        out.push({ date, cooking: m.isCooking !== false && menus.length > 0, from: String(m.vydaj_od ?? ''), to: String(m.vydaj_do ?? ''), menus });
+        const obj = String(m.evidencia?.obj ?? '').trim().toUpperCase();
+        const ordered = /^[A-Z]$/.test(obj) ? String(names[String(obj.charCodeAt(0) - 64)]?.skratka ?? '') : '';
+        out.push({ date, cooking: m.isCooking !== false && menus.length > 0, from: String(m.vydaj_od ?? ''), to: String(m.vydaj_do ?? ''), menus, ordered });
     }
     return out.sort((a, b) => a.date.localeCompare(b.date));
 }

@@ -123,4 +123,14 @@ const session = () => new edupage_1.EdupageSession('fakeschool', 'parent', base)
     await strict_1.default.rejects(s.menuWeek('2026-11-16'), (e) => e instanceof edupage_1.SessionExpired);
     strict_1.default.equal(s.passwordLogins, 1);
 });
+(0, node_test_1.test)('canteen: the current child\'s order (evidencia.obj A/B → menu S/W), per child', async () => {
+    const s = session();
+    await s.login('secret');
+    await s.switchChild('501');
+    let week = await s.menuWeek('2026-11-16');
+    strict_1.default.deepEqual(week.map((d) => d.ordered), ['W', 'S', '', 'S', 'S']); // 18th: not cooking, no order
+    await s.switchChild('502');
+    week = await s.menuWeek('2026-11-16');
+    strict_1.default.deepEqual(week.map((d) => d.ordered), ['S', 'S', '', 'S', '']);
+});
 //# sourceMappingURL=edupage.test.js.map
