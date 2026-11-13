@@ -28,7 +28,8 @@ test('day label: "Morgen" for the next day, else the weekday; DST change in betw
     assert.equal(dayLabel('', '2026-11-13'), '');
 });
 
-const at = (date: string, start: string, subjectId: string, extra: Partial<Lesson> = {}): Lesson => ({ ...l(date), start, subjectId, ...extra });
+const plus45 = (t: string): string => { const [h, m] = t.split(':').map(Number); const x = h * 60 + m + 45; return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+const at = (date: string, start: string, subjectId: string, extra: Partial<Lesson> = {}): Lesson => ({ ...l(date), start, end: plus45(start), subjectId, ...extra });
 const reg = (date: string, start: string, subjectId: string, topic: string, homeworkIds: string[] = []): ClassbookLesson => ({ date, start, period: '', subjectId, topic, homeworkIds });
 const hw = (id: string, subjectId: string, given: string, due: string, title = 'Aufgabe ' + id): Homework => ({ id, subjectId, title, details: '', given, due });
 const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'Englisch' } } } };
@@ -58,4 +59,14 @@ test('homework due / given on a date, with the subject name', () => {
     assert.deepEqual(homeworkDue(list, '2026-11-16', HOME as never).map((x) => [x.subject, x.title]), [['Mathematik', 'Aufgabe h1'], ['Englisch', 'Aufgabe h2']]);
     assert.deepEqual(homeworkGiven(list, '2026-11-13', HOME as never).map((x) => x.title), ['Aufgabe h1', 'Aufgabe h3']);
     assert.deepEqual(homeworkDue(list, '', HOME as never), []);
+});
+
+test('enrich: double lesson (one timetable entry, two register entries) gets both topics', () => {
+    const dbl = at('2026-11-13', '10:20', '11', { end: '12:10' });
+    const out = enrich([dbl, at('2026-11-13', '12:15', '12', { end: '13:00' })], [
+        reg('2026-11-13', '10:20', '11', 'Teil 1'), reg('2026-11-13', '11:25', '11', 'Teil 2'), reg('2026-11-13', '12:15', '12', 'Anderes'),
+    ], []);
+    assert.deepEqual(out.map((x) => x.topic), ['Teil 1 / Teil 2', 'Anderes']);
+    // same topic in both periods → shown once
+    assert.equal(enrich([dbl], [reg('2026-11-13', '10:20', '11', 'Gleich'), reg('2026-11-13', '11:25', '11', 'Gleich')], [])[0].topic, 'Gleich');
 });

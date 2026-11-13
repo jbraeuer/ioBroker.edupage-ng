@@ -54,17 +54,26 @@ function toText(lessons) {
 /**
  * Adds the class register topic and the homework given in a lesson. The timetable stays the source of truth
  * (cancelled / changed are never touched; Jens 2026-11-13: teachers don't use the class register reliably).
- * Match: same date + subject, then the same start time (or period); a lesson without a register entry keeps topic ''.
+ * Match: same date + subject, register start inside the lesson's [start, end) (double lessons: both topics, joined
+ * with ' / '), else the same period; a lesson without a register entry keeps topic ''.
  * Homework: linked by id from the register, else given that day in that subject → the first such lesson only.
  */
 function enrich(lessons, register, homework) {
     const used = new Set();
     return lessons.map((l) => {
         const same = register.filter((r) => r.date === l.date && r.subjectId === l.subjectId);
-        const r = same.find((x) => x.start && x.start === l.start) ?? same.find((x) => x.period && x.period === l.period) ?? (same.length === 1 ? same[0] : undefined);
-        const hw = homework.filter((h) => !used.has(h.id) && ((r?.homeworkIds.includes(h.id)) || (h.given === l.date && h.subjectId === l.subjectId)));
+        // a double lesson is ONE timetable entry (durationperiods 2) but one register entry per period (live 2026-11-13):
+        // take every register entry of the subject that starts inside the lesson's time span
+        let rs = same.filter((x) => x.start && l.start && x.start >= l.start && (l.end ? x.start < l.end : x.start === l.start));
+        if (!rs.length)
+            rs = same.filter((x) => x.period && x.period === l.period);
+        if (!rs.length && same.length === 1)
+            rs = same;
+        const topic = [...new Set(rs.map((x) => x.topic).filter(Boolean))].join(' / ');
+        const linked = new Set(rs.flatMap((x) => x.homeworkIds));
+        const hw = homework.filter((h) => !used.has(h.id) && (linked.has(h.id) || (h.given === l.date && h.subjectId === l.subjectId)));
         hw.forEach((h) => used.add(h.id));
-        return { ...l, topic: r?.topic ?? '', homework: hw.map((h) => h.title || h.details).filter(Boolean) };
+        return { ...l, topic, homework: hw.map((h) => h.title || h.details).filter(Boolean) };
     });
 }
 /** Homework that is due on `date`, with the subject name. */

@@ -27,7 +27,8 @@ const l = (date) => ({ date, period: '1', start: '08:00', end: '08:45', subject:
     strict_1.default.equal((0, lessons_1.dayLabel)('2026-10-26', '2026-10-25'), 'Morgen'); // DST end
     strict_1.default.equal((0, lessons_1.dayLabel)('', '2026-11-13'), '');
 });
-const at = (date, start, subjectId, extra = {}) => ({ ...l(date), start, subjectId, ...extra });
+const plus45 = (t) => { const [h, m] = t.split(':').map(Number); const x = h * 60 + m + 45; return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+const at = (date, start, subjectId, extra = {}) => ({ ...l(date), start, end: plus45(start), subjectId, ...extra });
 const reg = (date, start, subjectId, topic, homeworkIds = []) => ({ date, start, period: '', subjectId, topic, homeworkIds });
 const hw = (id, subjectId, given, due, title = 'Aufgabe ' + id) => ({ id, subjectId, title, details: '', given, due });
 const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'Englisch' } } } };
@@ -52,5 +53,14 @@ const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'E
     strict_1.default.deepEqual((0, lessons_1.homeworkDue)(list, '2026-11-16', HOME).map((x) => [x.subject, x.title]), [['Mathematik', 'Aufgabe h1'], ['Englisch', 'Aufgabe h2']]);
     strict_1.default.deepEqual((0, lessons_1.homeworkGiven)(list, '2026-11-13', HOME).map((x) => x.title), ['Aufgabe h1', 'Aufgabe h3']);
     strict_1.default.deepEqual((0, lessons_1.homeworkDue)(list, '', HOME), []);
+});
+(0, node_test_1.test)('enrich: double lesson (one timetable entry, two register entries) gets both topics', () => {
+    const dbl = at('2026-11-13', '10:20', '11', { end: '12:10' });
+    const out = (0, lessons_1.enrich)([dbl, at('2026-11-13', '12:15', '12', { end: '13:00' })], [
+        reg('2026-11-13', '10:20', '11', 'Teil 1'), reg('2026-11-13', '11:25', '11', 'Teil 2'), reg('2026-11-13', '12:15', '12', 'Anderes'),
+    ], []);
+    strict_1.default.deepEqual(out.map((x) => x.topic), ['Teil 1 / Teil 2', 'Anderes']);
+    // same topic in both periods → shown once
+    strict_1.default.equal((0, lessons_1.enrich)([dbl], [reg('2026-11-13', '10:20', '11', 'Gleich'), reg('2026-11-13', '11:25', '11', 'Gleich')], [])[0].topic, 'Gleich');
 });
 //# sourceMappingURL=lessons.test.js.map
