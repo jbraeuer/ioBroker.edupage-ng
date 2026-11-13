@@ -51,3 +51,16 @@ POST `/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml`, JSON `{"
 
 ## 8. Politeness
 Poll every 30 min (min. 15) with jitter, one request per thing, no parallel logins, no retries in tight loops.
+
+## 8. Homework *(verified live 2026-11-13, parent account, structure only)*
+- Page `GET /dashboard/eb.php?mode=exam&filterTab=works` (app menu "Hausaufgaben", after `switchchild`). Embeds `homeworklist({...})`.
+- `homeworks[]`: `homeworkid, predmetid` (subject), `name` (title), `details` (often empty), `datefrom` (given), `dateto` (**due**), `datecreated`, `period`, `typ` (e.g. `etesthw|hw`), `stav`, `pocet_done`, `skupiny`, `planid`.
+- Window: `datefrom`/`dateto` of the page (default ≈ 1 month back … 3 months ahead).
+- The timeline (`userhome.items`, `typ=homework`) holds the same items; `h_homework` entries are only "reload" markers.
+
+## 9. Class register / lesson topics ("Klassenbuch") *(verified live 2026-11-13)*
+- Page `GET /dashboard/eb.php?mode=ttday` contains a gadget `_gclass="DashboardClassbook"` with `_gparam="gpid=<n>&gsh=<hash>"` (fresh per page load).
+- Data: `POST /gcall` body `gpid=<n>&gsh=<hash>&action=loadData&&datefrom=YYYY-MM-DD&dateto=YYYY-MM-DD`. **Only `loadData`** (read). Never `doCMD` / `open` / `refresh` (teacher actions).
+- Answer: JavaScript (`JS:var …`) calling `….classbook.fill("<id>", {…})`; the 2nd argument is JSON: `dates[YYYY-MM-DD].plan[]` (lessons + breaks, `type: lesson`), `dbi` (names).
+- Per lesson `flags.dp<N>`: `note_wd` = **lesson topic ("Lehrstoff")**, `homeworkids[]`, `cancelled`, `changes`, `substids`, `starttime`, `endtime`, `subjectid`, `teacherids`, `classroomids`.
+- Open: a lesson cancelled in the timetable (`removed`) showed up uncancelled in the classbook plan (1 case) → compare in M3.
