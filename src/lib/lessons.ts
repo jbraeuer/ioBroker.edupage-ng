@@ -54,3 +54,18 @@ export function lastEnd(lessons: Lesson[]): string {
 export function toText(lessons: Lesson[]): string {
     return lessons.map((l) => `${l.period} ${l.start} ${l.subject}${l.room ? ' ' + l.room : ''}${l.cancelled ? ' (fällt aus)' : l.note ? ' (' + l.note + ')' : ''}`).join('\n');
 }
+
+/** The first date after `today` (YYYY-MM-DD) that has at least one lesson, or '' if none in the range. */
+export function nextSchoolDay(lessons: Lesson[], today: string): string {
+    return lessons.map((l) => l.date).filter((d) => d > today).sort()[0] ?? '';
+}
+
+const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const parse = (d: string): Date => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, 12); };   // noon: DST-safe
+
+/** Button label for a school day: "Morgen" if it is the day after `today`, else the weekday ("Montag"); '' if no date. */
+export function dayLabel(date: string, today: string): string {
+    if (!date) return '';
+    const days = Math.round((parse(date).getTime() - parse(today).getTime()) / 86400000);
+    return days === 1 ? 'Morgen' : WEEKDAYS[parse(date).getDay()];
+}

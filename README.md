@@ -1,6 +1,6 @@
 # ioBroker.edupage-ng
 
-Read-only EduPage adapter for parents: **today's and tomorrow's timetable incl. substitutions per child** and the
+Read-only EduPage adapter for parents: **today's and the next school day's timetable incl. substitutions per child** and the
 **canteen menu**, for one or two EduPage parent accounts. Made for a family kitchen panel (VIS-2).
 
 > Status: **0.0.1 / M0**. Skeleton, configuration and request encoding only. It doesn't talk to EduPage yet.
@@ -15,10 +15,12 @@ Read-only EduPage adapter for parents: **today's and tomorrow's timetable incl. 
 |---|---|
 | `info.connection`, `info.lastError`, `info.lastSuccess` | health |
 | `control.retry` | button: try again after a blocked login |
-| `<child>.today.lessons` / `.tomorrow.lessons` | JSON list of lessons |
+| `<child>.today.lessons` / `.next.lessons` | JSON list of lessons (`next` = next school day) |
+| `<child>.next.date` / `.next.label` | date of the next school day, button label ("Morgen" or the weekday) |
+| `debug.account1` / `debug.account2` | structure of the EduPage data (key names + counts only, no content), for development |
 | `<child>.today.changes` | substitutions / cancelled lessons |
 | `<child>.today.text` / `.html` | ready to show (VIS) |
-| `canteen.today.menu` / `.text` / `.html` (and `tomorrow`) | canteen |
+| `canteen.today.menu` / `.text` / `.html` (and `next`) | canteen |
 
 ## Roadmap
 M0 skeleton ✅ · M1 login + session reuse + one child's timetable · M2 two accounts, several children · M3 substitutions · M4 canteen · M5 VIS HTML, i18n, release 0.1.0

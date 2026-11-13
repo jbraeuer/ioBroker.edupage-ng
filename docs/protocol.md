@@ -39,7 +39,7 @@ Implemented in `src/lib/eqap.ts`, with tests.
 POST `/timetable/server/currenttt.js?__func=curentttGetData` (sic), JSON:
 `{"__args": [null, {"year", "datefrom", "dateto", "table": "students", "id": "<childId>", "showColors": true, "showIgroupsInClasses": true, "showOrig": true, "log_module": "CurrentTTView"}], "__gsh": "<gsechash>"}`
 - Answer `r.ttitems[]`: `uniperiod`, `starttime`, `endtime`, `subjectid`, `teacherids`, `classroomids`, `classids`, `groupnames`, `removed`, `type`, `flags`, `name`. Names come from `dbi`.
-- One request for today + tomorrow (`datefrom`…`dateto`).
+- One request for today … today+10 (`datefrom`…`dateto`); the next school day = first later date with lessons. *(10-day range: unverified live)*
 - `{"reload": …}` = session expired → re-login once.
 
 ## 6. Substitutions *(compare with the ttitems flags once, live)*

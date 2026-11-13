@@ -11,9 +11,11 @@ import * as utils from '@iobroker/adapter-core';
 
 import { Config, Child, validateConfig } from './lib/config';
 import { EdupageSession, SessionExpired } from './lib/edupage';
-import { lastEnd, toLessons, toText } from './lib/lessons';
+import { dayLabel, lastEnd, nextSchoolDay, toLessons, toText } from './lib/lessons';
+import { describe } from './lib/structure';
 
 const HOUR = 3600000;
+const LOOKAHEAD_DAYS = 10;   // the next school day is searched in today+1 … today+10 (weekend + a holiday week)
 const ymd = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export class EdupageNg extends utils.Adapter {
@@ -44,13 +46,16 @@ export class EdupageNg extends utils.Adapter {
         }
         for (const k of this.cfg.children) await this.createChildStates(k);
         await this.createCanteenStates();
+        await this.setObjectNotExistsAsync('debug', { type: 'channel', common: { name: 'Discovery (structure only, no content)' }, native: {} });
+        for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.account${acc}`, { type: 'state', common: { name: `Account ${acc}: userhome structure (key names + counts only)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
+        await this.removeObsoleteTomorrow();
         this.subscribeStates('control.retry');
         await this.poll();
     }
 
     private async createChildStates(k: Child): Promise<void> {
         await this.setObjectNotExistsAsync(k.alias, { type: 'device', common: { name: k.name }, native: {} });
-        for (const day of ['today', 'tomorrow']) {
+        for (const day of ['today', 'next']) {
             await this.setObjectNotExistsAsync(`${k.alias}.${day}`, { type: 'channel', common: { name: day }, native: {} });
             for (const [id, role, name] of [
                 ['lessons', 'json', 'Lessons (JSON list)'], ['changes', 'json', 'Substitutions / changes (JSON list)'],
@@ -59,11 +64,20 @@ export class EdupageNg extends utils.Adapter {
                 await this.setObjectNotExistsAsync(`${k.alias}.${day}.${id}`, { type: 'state', common: { name, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
         }
+        await this.setObjectNotExistsAsync(`${k.alias}.next.date`, { type: 'state', common: { name: 'Date of the next school day (YYYY-MM-DD)', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
+        await this.setObjectNotExistsAsync(`${k.alias}.next.label`, { type: 'state', common: { name: 'Button label: "Morgen" or the weekday', role: 'text', type: 'string', read: true, write: false, def: '' }, native: {} });
+    }
+
+    /** 0.0.1 had `<child>.tomorrow.*` and `canteen.tomorrow.*`; 0.0.2 replaces them with `next.*`. */
+    private async removeObsoleteTomorrow(): Promise<void> {
+        for (const id of [...this.cfg.children.map((k) => `${k.alias}.tomorrow`), 'canteen.tomorrow']) {
+            if (await this.getObjectAsync(id)) await this.delObjectAsync(id, { recursive: true });
+        }
     }
 
     private async createCanteenStates(): Promise<void> {
         await this.setObjectNotExistsAsync('canteen', { type: 'channel', common: { name: 'Canteen' }, native: {} });
-        for (const day of ['today', 'tomorrow']) {
+        for (const day of ['today', 'next']) {
             for (const [id, role, name] of [['menu', 'json', 'Menu (JSON)'], ['text', 'text', 'Menu as text'], ['html', 'html', 'Menu as HTML (for VIS)']]) {
                 await this.setObjectNotExistsAsync(`canteen.${day}.${id}`, { type: 'state', common: { name: `${day}: ${name}`, role, type: 'string', read: true, write: false, def: '' }, native: {} });
             }
@@ -133,16 +147,21 @@ export class EdupageNg extends utils.Adapter {
 
     private async pollAccount(acc: 1 | 2, kids: Child[]): Promise<void> {
         const s = await this.session(acc);
-        const today = new Date(), tomorrow = new Date(Date.now() + 24 * HOUR);
+        await this.setStateAsync(`debug.account${acc}`, JSON.stringify(describe(s.userhome)), true);
+        const now = new Date(), today = ymd(now);
+        const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
         for (const k of kids) {
             const st = s.findStudent(k.name);
             if (!st) {
                 throw Object.assign(new Error(`account ${acc}: no child "${k.name}" (found: ${s.students().map((x) => x.name).join(', ') || 'none'})`), { code: 'child_not_found' });
             }
             if (s.isParent) await s.switchChild(st.id);
-            const lessons = toLessons(await s.timetable(st.id, ymd(today), ymd(tomorrow)), s.userhome);
-            for (const [day, date] of [['today', ymd(today)], ['tomorrow', ymd(tomorrow)]] as const) {
-                const l = lessons.filter((x) => !x.date || x.date === date);
+            const lessons = toLessons(await s.timetable(st.id, today, until), s.userhome);
+            const next = nextSchoolDay(lessons, today);
+            await this.setStateAsync(`${k.alias}.next.date`, next, true);
+            await this.setStateAsync(`${k.alias}.next.label`, dayLabel(next, today), true);
+            for (const [day, date] of [['today', today], ['next', next]] as const) {
+                const l = date ? lessons.filter((x) => x.date === date) : [];
                 await this.setStateAsync(`${k.alias}.${day}.lessons`, JSON.stringify(l), true);
                 await this.setStateAsync(`${k.alias}.${day}.changes`, JSON.stringify(l.filter((x) => x.cancelled || x.changed)), true);
                 await this.setStateAsync(`${k.alias}.${day}.text`, toText(l), true);

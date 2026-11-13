@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.toLessons = toLessons;
 exports.lastEnd = lastEnd;
 exports.toText = toText;
+exports.nextSchoolDay = nextSchoolDay;
+exports.dayLabel = dayLabel;
 const name = (dbi, table, id) => {
     const row = dbi?.[table]?.[String(id)];
     if (!row)
@@ -41,5 +43,18 @@ function lastEnd(lessons) {
 }
 function toText(lessons) {
     return lessons.map((l) => `${l.period} ${l.start} ${l.subject}${l.room ? ' ' + l.room : ''}${l.cancelled ? ' (fällt aus)' : l.note ? ' (' + l.note + ')' : ''}`).join('\n');
+}
+/** The first date after `today` (YYYY-MM-DD) that has at least one lesson, or '' if none in the range. */
+function nextSchoolDay(lessons, today) {
+    return lessons.map((l) => l.date).filter((d) => d > today).sort()[0] ?? '';
+}
+const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const parse = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, 12); }; // noon: DST-safe
+/** Button label for a school day: "Morgen" if it is the day after `today`, else the weekday ("Montag"); '' if no date. */
+function dayLabel(date, today) {
+    if (!date)
+        return '';
+    const days = Math.round((parse(date).getTime() - parse(today).getTime()) / 86400000);
+    return days === 1 ? 'Morgen' : WEEKDAYS[parse(date).getDay()];
 }
 //# sourceMappingURL=lessons.js.map
