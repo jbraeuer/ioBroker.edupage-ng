@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describe } from './structure';
+import { describe, describeChanged, mask } from './structure';
 
 test('describe(): shape only, no content leaks', () => {
     const secret = 'Mathe S. 12 Nr. 3 – Anna Beispiel';
@@ -24,4 +24,21 @@ test('describe(): shape only, no content leaks', () => {
 
 test('describe(): null userhome', () => {
     assert.equal(describe(null).items.count, 0);
+});
+
+test('F-0035: substitution items and changed lessons: shape only, masked text, no names or codes', () => {
+    const s = describe({
+        dbi: { teachers: { '22': { firstname: 'Felix', lastname: 'Beyer', short: 'FB', id: '22' } } },
+        items: [{ typ: 'substitution', text: '3. Std WAT: RB ➔ FB', user: 'Ucitel22', data: JSON.stringify({ '2026-11-16': [{ period: '4', teacherids: ['22'], text: 'RB ➔ FB' }] }) }],
+    } as never);
+    const out = JSON.stringify(s);
+    for (const bad of ['RB', 'FB', 'WAT', 'Felix', 'Beyer', 'Ucitel22']) assert.ok(!out.includes(bad), `leaks "${bad}"`);
+    assert.deepEqual(s.substitution[0], {
+        text: 'str:9. Aaa AAA: AA ➔ AA', user: 'str:Aaaaaa99', target_user: 'undefined',
+        data: { DATE: { 'array(1)': [{ period: 'str:9', teacherids: { 'array(1)': ['str:99'] }, text: 'str:AA ➔ AA' }] } },
+    });
+    assert.deepEqual(s.teacherKeys, ['firstname', 'id', 'lastname', 'short']);
+    const c = JSON.stringify(describeChanged([{ subjectid: '12', teacherids: ['22'], changed: true, flags: {} }, { subjectid: '1' }]));
+    assert.ok(!c.includes('"12"') && c.includes('teacherids') && c.includes('changed'), c);
+    assert.equal(mask('\u00c4 \u00f6 9:x'), 'A a 9:a');
 });

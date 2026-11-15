@@ -11,6 +11,20 @@ const keysOf = (v: unknown): string[] => {
     if (typeof v === 'string' && v.startsWith('{')) { try { return Object.keys(JSON.parse(v) as object); } catch { return []; } }
     return v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v) : [];
 };
+/** Text shape without content (F-0035): capital -> A, lowercase -> a, digit -> 9, whitespace -> ' '; symbols stay
+ *  (arrows, colons, dots, brackets). Max 80 chars. "3. Std WAT: RB -> FB" becomes "9. Aaa AAA: AA -> AA". */
+export const mask = (t: string): string => t.slice(0, 80).replace(/\p{Lu}/gu, 'A').replace(/\p{Ll}/gu, 'a').replace(/\p{Nd}/gu, '9').replace(/\s+/g, ' ');
+/** Shape of a value: objects -> key: shape (date keys -> DATE), arrays -> first 3 elements, strings -> mask, else the type. */
+export function shape(v: unknown, depth = 3): unknown {
+    if (typeof v === 'string') {
+        if (v.startsWith('{') || v.startsWith('[')) { try { return shape(JSON.parse(v), depth); } catch { /* plain text */ } }
+        return `str:${mask(v)}`;
+    }
+    if (v === null || typeof v !== 'object') return typeof v;
+    if (depth <= 0) return kind(v);
+    if (Array.isArray(v)) return { [`array(${v.length})`]: v.slice(0, 3).map((x) => shape(x, depth - 1)) };
+    return Object.fromEntries(Object.keys(v).slice(0, 30).map((k) => [/^\d{4}-\d{2}-\d{2}$/.test(k) ? 'DATE' : k, shape((v as Record<string, unknown>)[k], depth - 1)]));
+}
 const day = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 
 export interface Structure {
@@ -20,6 +34,10 @@ export interface Structure {
     /** per homework item: days from "added" (cas_pridania) to data.date, and whether predmetid is a known subject. Numbers/booleans only. */
     homework: { addedToDateDays: number | null; subjectKnown: boolean; hasDescription: boolean }[];
     hints: string[];
+    /** F-0035: timeline items of type substitution: shape of text and data (masked, no content), max 3 items */
+    substitution: unknown[];
+    /** F-0035: key names of one teacher row (to confirm the short code field) */
+    teacherKeys: string[];
 }
 
 export function describe(home: UserHome | null): Structure {
@@ -49,5 +67,13 @@ export function describe(home: UserHome | null): Structure {
         items: { count: raw.length, byType, fields: [...fields].sort(), dataFields: Object.fromEntries(Object.entries(dataFields).map(([k, v]) => [k, [...v].sort()])), dates: { from: dates[0] ?? '', to: dates[dates.length - 1] ?? '' } },
         hints: [...new Set(hints)].sort(),
         homework,
+        substitution: raw.filter((it) => it.typ === 'substitution').slice(0, 3).map((it) => ({ text: shape(it.text), data: shape(it.data, 4), user: shape(it.user), target_user: shape(it.target_user) })),
+        teacherKeys: Object.keys((Object.values(home?.dbi?.teachers ?? {})[0] ?? {}) as object).sort(),
     };
+}
+
+/** F-0035: shape of changed / removed timetable items (keys + masked values), max 3, to find the original teacher. */
+export function describeChanged(items: Record<string, unknown>[]): unknown[] {
+    return items.filter((it) => it.changed || it.removed || it.type === 'absent' || (it.flags && Object.keys(it.flags as object).length))
+        .slice(0, 3).map((it) => shape(it, 3));
 }

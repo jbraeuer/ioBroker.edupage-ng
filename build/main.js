@@ -83,6 +83,8 @@ class EdupageNg extends utils.Adapter {
         await this.createCanteenStates();
         await this.setObjectNotExistsAsync('debug', { type: 'channel', common: { name: 'Discovery (structure only, no content)' }, native: {} });
         for (const acc of [1, 2])
+            await this.setObjectNotExistsAsync(`debug.changed${acc}`, { type: 'state', common: { name: `Account ${acc}: changed timetable items (shape only, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
+        for (const acc of [1, 2])
             await this.setObjectNotExistsAsync(`debug.account${acc}`, { type: 'state', common: { name: `Account ${acc}: userhome structure (key names + counts only)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.removeObsoleteTomorrow();
         this.subscribeStates('control.retry');
@@ -199,6 +201,7 @@ class EdupageNg extends utils.Adapter {
         await this.setStateAsync(`debug.account${acc}`, JSON.stringify((0, structure_1.describe)(s.userhome)), true);
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
+        const changedShapes = [];
         for (const k of kids) {
             const st = s.findStudent(k.name);
             if (!st) {
@@ -206,7 +209,9 @@ class EdupageNg extends utils.Adapter {
             }
             if (s.isParent)
                 await s.switchChild(st.id);
-            const plain = (0, lessons_1.toLessons)(await s.timetable(st.id, today, until), s.userhome);
+            const rawItems = await s.timetable(st.id, today, until);
+            changedShapes.push(...(0, structure_1.describeChanged)(rawItems));
+            const plain = (0, lessons_1.toLessons)(rawItems, s.userhome);
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
             const after = (0, lessons_1.afterSchoolDay)(plain, next);
             if (next && (!this.nextSchoolDay || next < this.nextSchoolDay))
@@ -231,6 +236,7 @@ class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify((0, lessons_1.homeworkDue)(homework, date, s.userhome)), true);
             }
         }
+        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 3)), true);
     }
     /**
      * The menu page carries the CURRENT child's order, so it is fetched per child (right after the child switch for the

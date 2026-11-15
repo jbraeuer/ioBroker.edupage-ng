@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.11",
+    "version": "0.0.12",
     "news": {
+      "0.0.12": { "en": "Discovery (shape only): substitution timeline items, teacher row keys, changed timetable items (debug.*).", "de": "Erkundung (nur Struktur): Vertretungs-Einträge, Lehrer-Felder, geänderte Stunden (debug.*)." },
       "0.0.11": { "en": "Day after next: <child>.after.* (lessons, changes, text, end, homework, homeworkDue, lunch, date, label) and canteen.after.* (the school day after the next one).", "de": "Übernächster Schultag: <child>.after.* (Stunden, Vertretungen, Text, Schluss, Hausaufgaben, Essen, Datum, Label) und canteen.after.* (der Schultag nach dem nächsten)." },
       "0.0.10": { "en": "Lessons: periodLabel (the school's own lesson number from dbi.periods, \"1–2\" for a double lesson) and periods (durationperiods).", "de": "Stunden: periodLabel (Stundennummer der Schule aus dbi.periods, \"1–2\" bei Doppelstunden) und periods (durationperiods)." },
       "0.0.9": { "en": "Lunch order per child (<child>.today|next.lunch).", "de": "Essensbestellung je Kind (<child>.today|next.lunch)." },

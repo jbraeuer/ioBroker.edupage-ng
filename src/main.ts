@@ -12,7 +12,7 @@ import * as utils from '@iobroker/adapter-core';
 import { Config, Child, validateConfig } from './lib/config';
 import { ClassbookLesson, EdupageSession, Homework, Lunch, SessionExpired } from './lib/edupage';
 import { afterSchoolDay, canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText } from './lib/lessons';
-import { describe } from './lib/structure';
+import { describe, describeChanged } from './lib/structure';
 
 const HOUR = 3600000;
 // next and after are searched in today+1 … today+14 (weekend + a holiday week, and the school day after next still fits)
@@ -51,6 +51,7 @@ export class EdupageNg extends utils.Adapter {
         for (const k of this.cfg.children) await this.createChildStates(k);
         await this.createCanteenStates();
         await this.setObjectNotExistsAsync('debug', { type: 'channel', common: { name: 'Discovery (structure only, no content)' }, native: {} });
+        for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.changed${acc}`, { type: 'state', common: { name: `Account ${acc}: changed timetable items (shape only, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.account${acc}`, { type: 'state', common: { name: `Account ${acc}: userhome structure (key names + counts only)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.removeObsoleteTomorrow();
         this.subscribeStates('control.retry');
@@ -165,13 +166,16 @@ export class EdupageNg extends utils.Adapter {
         await this.setStateAsync(`debug.account${acc}`, JSON.stringify(describe(s.userhome)), true);
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
+        const changedShapes: unknown[] = [];
         for (const k of kids) {
             const st = s.findStudent(k.name);
             if (!st) {
                 throw Object.assign(new Error(`account ${acc}: no child "${k.name}" (found: ${s.students().map((x) => x.name).join(', ') || 'none'})`), { code: 'child_not_found' });
             }
             if (s.isParent) await s.switchChild(st.id);
-            const plain = toLessons(await s.timetable(st.id, today, until), s.userhome);
+            const rawItems = await s.timetable(st.id, today, until);
+            changedShapes.push(...describeChanged(rawItems));
+            const plain = toLessons(rawItems, s.userhome);
             const next = nextSchoolDay(plain, today);
             const after = afterSchoolDay(plain, next);
             if (next && (!this.nextSchoolDay || next < this.nextSchoolDay)) this.nextSchoolDay = next;
@@ -194,6 +198,7 @@ export class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify(homeworkDue(homework, date, s.userhome)), true);
             }
         }
+        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 3)), true);
     }
 
 
