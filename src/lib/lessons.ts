@@ -1,5 +1,6 @@
 /** Turns raw timetable items (+ the dbi lookup tables) into lessons for the panel. */
 import type { ClassbookLesson, Homework, Lunch, UserHome } from './edupage';
+import { coversLesson, teacherSwap, type SubstRow } from './subst';
 
 export interface Lesson {
     date: string;
@@ -17,6 +18,7 @@ export interface Lesson {
     subjectId: string;
     topic: string;        // "Lehrstoff" from the class register ('' if the teacher didn't enter one)
     homework: string[];   // titles of homework given in this lesson
+    substitution?: { from: string; to: string };   // F-0035: teacher short codes from the substitution plan
 }
 
 /** Homework as shown on the panel. */
@@ -148,4 +150,19 @@ export function canteenText(lunch: Lunch | null): string {
     if (!lunch) return '';
     if (!lunch.cooking) return 'kein Mittagessen';
     return lunch.menus.map((m) => (m.code ? `${m.code}: ${m.dish}` : m.dish)).join('\n');
+}
+
+/**
+ * F-0035: "Vertretung RB → FB" from the substitution plan rows of the child's class. Only lessons the timetable marks
+ * as changed (and not cancelled) get it, only if a row covers the lesson number AND its text has the teacher swap
+ * pattern; a lesson that already has its own note keeps it.
+ */
+export function applySubstitutions(lessons: Lesson[], rows: SubstRow[]): Lesson[] {
+    if (!rows.length) return lessons;
+    return lessons.map((l) => {
+        if (!l.changed || l.cancelled || l.note) return l;
+        const label = l.periodLabel || l.period;
+        const swap = rows.filter((r) => coversLesson(r.lessons, label)).map((r) => teacherSwap(r.text)).find(Boolean);
+        return swap ? { ...l, note: `Vertretung ${swap.from} → ${swap.to}`, substitution: swap } : l;
+    });
 }

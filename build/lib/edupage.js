@@ -244,6 +244,11 @@ class EdupageSession {
             throw new ProtocolChanged('timetable: no ttitems list');
         return out.ttitems;
     }
+    /** F-0035: the school's substitution plan of one day as HTML (read-only viewer call; '' if there is none). */
+    async substitutionDay(date) {
+        const r = await this.call('/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml', [null, { date, mode: 'classes' }]);
+        return typeof r.r === 'string' ? r.r : '';
+    }
     /** Lunch menus of the week that contains `date` (YYYY-MM-DD). GET only: a POST to /menu/ would order meals. */
     async menuWeek(date) {
         const r = await this.http.request('GET', `/menu/?date=${date.replaceAll('-', '')}`);

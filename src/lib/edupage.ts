@@ -215,6 +215,12 @@ export class EdupageSession {
         return out.ttitems as Record<string, unknown>[];
     }
 
+    /** F-0035: the school's substitution plan of one day as HTML (read-only viewer call; '' if there is none). */
+    public async substitutionDay(date: string): Promise<string> {
+        const r = await this.call('/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml', [null, { date, mode: 'classes' }]);
+        return typeof r.r === 'string' ? r.r : '';
+    }
+
     /** Lunch menus of the week that contains `date` (YYYY-MM-DD). GET only: a POST to /menu/ would order meals. */
     public async menuWeek(date: string): Promise<Lunch[]> {
         const r = await this.http.request('GET', `/menu/?date=${date.replaceAll('-', '')}`);

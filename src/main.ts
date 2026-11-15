@@ -11,8 +11,9 @@ import * as utils from '@iobroker/adapter-core';
 
 import { Config, Child, validateConfig } from './lib/config';
 import { ClassbookLesson, EdupageSession, Homework, Lunch, SessionExpired } from './lib/edupage';
-import { afterSchoolDay, canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText } from './lib/lessons';
-import { describe, describeChanged } from './lib/structure';
+import { afterSchoolDay, canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText, applySubstitutions } from './lib/lessons';
+import { describe, describeChanged, mask } from './lib/structure';
+import { parseSubstitutions, rowsForClass, type SubstRow } from './lib/subst';
 
 const HOUR = 3600000;
 // next and after are searched in today+1 … today+14 (weekend + a holiday week, and the school day after next still fits)
@@ -51,6 +52,7 @@ export class EdupageNg extends utils.Adapter {
         for (const k of this.cfg.children) await this.createChildStates(k);
         await this.createCanteenStates();
         await this.setObjectNotExistsAsync('debug', { type: 'channel', common: { name: 'Discovery (structure only, no content)' }, native: {} });
+        for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.subst${acc}`, { type: 'state', common: { name: `Account ${acc}: substitution rows of the children's classes (masked, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.changed${acc}`, { type: 'state', common: { name: `Account ${acc}: changed timetable items (shape only, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         for (const acc of [1, 2]) await this.setObjectNotExistsAsync(`debug.account${acc}`, { type: 'state', common: { name: `Account ${acc}: userhome structure (key names + counts only)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         await this.removeObsoleteTomorrow();
@@ -167,6 +169,8 @@ export class EdupageNg extends utils.Adapter {
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
         const changedShapes: unknown[] = [];
+        const substPages = new Map<string, string>();   // date -> viewer HTML (one call per date and account)
+        const substShapes: unknown[] = [];
         for (const k of kids) {
             const st = s.findStudent(k.name);
             if (!st) {
@@ -181,7 +185,20 @@ export class EdupageNg extends utils.Adapter {
             if (next && (!this.nextSchoolDay || next < this.nextSchoolDay)) this.nextSchoolDay = next;
             for (const x of plain) this.schoolDays.add(x.date);
             const { register, homework } = await this.extras(s, k, today, after || next || today);
-            const lessons = enrich(plain, register, homework);
+            const className = String((s.userhome?.dbi?.classes?.[String(st.classId ?? '')] as { name?: string } | undefined)?.name ?? '');
+            const rowsByDate = new Map<string, SubstRow[]>();
+            for (const date of [...new Set(plain.filter((x) => x.changed && !x.cancelled).map((x) => x.date))]) {
+                if (!className) break;
+                try {
+                    if (!substPages.has(date)) substPages.set(date, await s.substitutionDay(date));
+                    const rows = rowsForClass(parseSubstitutions(substPages.get(date) ?? ''), className);
+                    rowsByDate.set(date, rows);
+                    substShapes.push({ date, classFound: rows.length > 0, rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: mask(r.lessons), text: mask(r.text) })) });
+                } catch (e) {
+                    this.log.warn(`substitution plan ${date}: ${(e as Error).message}`);   // the timetable still works without it
+                }
+            }
+            const lessons = enrich(plain, register, homework).map((l) => (rowsByDate.has(l.date) ? applySubstitutions([l], rowsByDate.get(l.date) ?? [])[0] : l));
             await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify(openHomework(homework, today, s.userhome)), true);
             await this.childLunch(s, k, today, next, after);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
@@ -199,6 +216,7 @@ export class EdupageNg extends utils.Adapter {
             }
         }
         await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 3)), true);
+        await this.setStateAsync(`debug.subst${acc}`, JSON.stringify(substShapes.slice(0, 6)), true);
     }
 
 

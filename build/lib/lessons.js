@@ -12,6 +12,8 @@ exports.nextSchoolDay = nextSchoolDay;
 exports.afterSchoolDay = afterSchoolDay;
 exports.dayLabel = dayLabel;
 exports.canteenText = canteenText;
+exports.applySubstitutions = applySubstitutions;
+const subst_1 = require("./subst");
 const name = (dbi, table, id) => {
     const row = dbi?.[table]?.[String(id)];
     if (!row)
@@ -131,5 +133,21 @@ function canteenText(lunch) {
     if (!lunch.cooking)
         return 'kein Mittagessen';
     return lunch.menus.map((m) => (m.code ? `${m.code}: ${m.dish}` : m.dish)).join('\n');
+}
+/**
+ * F-0035: "Vertretung RB → FB" from the substitution plan rows of the child's class. Only lessons the timetable marks
+ * as changed (and not cancelled) get it, only if a row covers the lesson number AND its text has the teacher swap
+ * pattern; a lesson that already has its own note keeps it.
+ */
+function applySubstitutions(lessons, rows) {
+    if (!rows.length)
+        return lessons;
+    return lessons.map((l) => {
+        if (!l.changed || l.cancelled || l.note)
+            return l;
+        const label = l.periodLabel || l.period;
+        const swap = rows.filter((r) => (0, subst_1.coversLesson)(r.lessons, label)).map((r) => (0, subst_1.teacherSwap)(r.text)).find(Boolean);
+        return swap ? { ...l, note: `Vertretung ${swap.from} → ${swap.to}`, substitution: swap } : l;
+    });
 }
 //# sourceMappingURL=lessons.js.map

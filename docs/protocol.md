@@ -42,8 +42,9 @@ POST `/timetable/server/currenttt.js?__func=curentttGetData` (sic), JSON:
 - One request for today … today+10 (`datefrom`…`dateto`); the next school day = first later date with lessons. *(10-day range: unverified live)*
 - `{"reload": …}` = session expired → re-login once.
 
-## 6. Substitutions *(compare with the ttitems flags once, live)*
+## 6. Substitutions *(used since 0.0.13, F-0035)*
 POST `/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml`, JSON `{"__args": [null, {"date": "YYYY-MM-DD", "mode": "classes"}], "__gsh": …}` → `r` = an HTML string, per class. We keep only the child's class.
+Verified live 2026-11-15: changed ttitems carry only `changed: true` and the NEW `teacherids` (no old teacher); the timeline item `typ: substitution` is only a notice (`data` = `{date: true}`). The old → new teacher short codes come from this viewer. Called only for dates with a changed lesson, once per date and account.
 
 ## 7. Canteen (read-only)
 - **Only** GET `/menu/?date=YYYYMMDD`. The page contains a JS literal `edupageData: {…}`; menus per date and meal (1 snack, 2 lunch, 3 afternoon).
