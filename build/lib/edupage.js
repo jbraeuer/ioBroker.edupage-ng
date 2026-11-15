@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EdupageSession = exports.ProtocolChanged = exports.SessionExpired = exports.TwoFactorRequired = exports.CaptchaRequired = exports.LoginFailed = void 0;
+exports.teacherChangeOf = teacherChangeOf;
 exports.parseMenuPage = parseMenuPage;
 exports.parseHomeworkPage = parseHomeworkPage;
 exports.classbookGparam = classbookGparam;
@@ -33,6 +34,21 @@ class ProtocolChanged extends Error {
     code = 'protocol_changed';
 }
 exports.ProtocolChanged = ProtocolChanged;
+const ids = (v) => (Array.isArray(v) ? v : v === undefined || v === null || v === '' ? [] : String(v).split(','))
+    .map((x) => String(x).trim()).filter(Boolean);
+/** F-0035 (verified live 2026-11-15 on a parent account): a substituted lesson's dp0 has
+ *  changes: [{ column: 'teacherids', old: '<id>', new: '<id>' }] and orig.teacherids = the original teacher. */
+function teacherChangeOf(dp) {
+    const ch = (Array.isArray(dp.changes) ? dp.changes : []).find((c) => c?.column === 'teacherids');
+    let o = ids(ch?.old), n = ids(ch?.new);
+    if (!ch) {
+        o = ids(dp.orig?.teacherids);
+        n = ids(dp.teacherids);
+        if (!o.length || !n.length || (o.length === n.length && o.every((x) => n.includes(x))))
+            return null;
+    }
+    return o.length && n.length ? { old: o, new: n } : null;
+}
 const d10 = (v) => String(v ?? '').slice(0, 10);
 /** Parses the canteen page (`edupageData: {<school>: {novyListok: {<date>: {"2": lunch}}}}`). One page = one week. */
 function parseMenuPage(html, school) {
@@ -107,6 +123,7 @@ function parseClassbook(js) {
                 date: d10(dp.date ?? date), start: String(dp.starttime ?? p.starttime ?? ''), period: String(dp.uniperiod ?? p.uniperiod ?? p.period ?? ''),
                 subjectId: String(dp.subjectid ?? p.subjectid ?? ''), topic: String(dp.note_wd ?? '').trim(),
                 homeworkIds: Array.isArray(dp.homeworkids) ? dp.homeworkids.map(String) : [],
+                teacherChange: teacherChangeOf(dp),
             });
         }
     }
@@ -243,11 +260,6 @@ class EdupageSession {
         if (!Array.isArray(out.ttitems))
             throw new ProtocolChanged('timetable: no ttitems list');
         return out.ttitems;
-    }
-    /** F-0035: the school's substitution plan of one day as HTML (read-only viewer call; '' if there is none). */
-    async substitutionDay(date) {
-        const r = await this.call('/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml', [null, { date, mode: 'classes' }]);
-        return typeof r.r === 'string' ? r.r : '';
     }
     /** Lunch menus of the week that contains `date` (YYYY-MM-DD). GET only: a POST to /menu/ would order meals. */
     async menuWeek(date) {

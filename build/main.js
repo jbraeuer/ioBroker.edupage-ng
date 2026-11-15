@@ -48,7 +48,6 @@ const config_1 = require("./lib/config");
 const edupage_1 = require("./lib/edupage");
 const lessons_1 = require("./lib/lessons");
 const structure_1 = require("./lib/structure");
-const subst_1 = require("./lib/subst");
 const HOUR = 3600000;
 // next and after are searched in today+1 … today+14 (weekend + a holiday week, and the school day after next still fits)
 const LOOKAHEAD_DAYS = 14;
@@ -83,8 +82,6 @@ class EdupageNg extends utils.Adapter {
             await this.createChildStates(k);
         await this.createCanteenStates();
         await this.setObjectNotExistsAsync('debug', { type: 'channel', common: { name: 'Discovery (structure only, no content)' }, native: {} });
-        for (const acc of [1, 2])
-            await this.setObjectNotExistsAsync(`debug.subst${acc}`, { type: 'state', common: { name: `Account ${acc}: substitution rows of the children's classes (masked, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         for (const acc of [1, 2])
             await this.setObjectNotExistsAsync(`debug.changed${acc}`, { type: 'state', common: { name: `Account ${acc}: changed timetable items (shape only, F-0035)`, role: 'json', type: 'string', read: true, write: false, def: '' }, native: {} });
         for (const acc of [1, 2])
@@ -205,9 +202,6 @@ class EdupageNg extends utils.Adapter {
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
         const changedShapes = [];
-        const siblingShapes = [];
-        const substPages = new Map(); // date -> viewer HTML (one call per date and account)
-        const substShapes = [];
         for (const k of kids) {
             const st = s.findStudent(k.name);
             if (!st) {
@@ -217,8 +211,6 @@ class EdupageNg extends utils.Adapter {
                 await s.switchChild(st.id);
             const rawItems = await s.timetable(st.id, today, until);
             changedShapes.push(...(0, structure_1.describeChanged)(rawItems));
-            if (!siblingShapes.length)
-                siblingShapes.push(...(0, structure_1.describeSiblings)(rawItems));
             const plain = (0, lessons_1.toLessons)(rawItems, s.userhome);
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
             const after = (0, lessons_1.afterSchoolDay)(plain, next);
@@ -227,26 +219,8 @@ class EdupageNg extends utils.Adapter {
             for (const x of plain)
                 this.schoolDays.add(x.date);
             const { register, homework } = await this.extras(s, k, today, after || next || today);
-            const className = String(s.userhome?.dbi?.classes?.[String(st.classId ?? '')]?.name ?? '');
-            const rowsByDate = new Map();
-            for (const date of [...new Set(plain.filter((x) => x.changed && !x.cancelled).map((x) => x.date))]) {
-                if (!className)
-                    break;
-                try {
-                    if (!substPages.has(date))
-                        substPages.set(date, await s.substitutionDay(date));
-                    const rows = (0, subst_1.rowsForClass)((0, subst_1.parseSubstitutions)(substPages.get(date) ?? ''), className);
-                    rowsByDate.set(date, rows);
-                    const page = substPages.get(date) ?? '';
-                    substShapes.push({ date, classFound: rows.length > 0, childClass: (0, structure_1.mask)(className), classes: (0, subst_1.parseSubstitutions)(page).map((c) => (0, structure_1.mask)(c.className)).slice(0, 30),
-                        rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: (0, structure_1.mask)(r.lessons), text: (0, structure_1.mask)(r.text) })),
-                        ...(substShapes.length === 0 ? { length: page.length, skeleton: (0, structure_1.skeleton)(page) } : {}) });
-                }
-                catch (e) {
-                    this.log.warn(`substitution plan ${date}: ${e.message}`); // the timetable still works without it
-                }
-            }
-            const lessons = (0, lessons_1.enrich)(plain, register, homework).map((l) => (rowsByDate.has(l.date) ? (0, lessons_1.applySubstitutions)([l], rowsByDate.get(l.date) ?? [])[0] : l));
+            const lessons = (0, lessons_1.enrich)(plain, register, homework, (0, lessons_1.teacherShort)(s.userhome));
+            changedShapes.push({ registerTeacherChanges: register.filter((r) => r.teacherChange).length, lessonsWithNote: lessons.filter((l) => l.substitution).length });
             await this.setStateAsync(`${k.alias}.openHomework`, JSON.stringify((0, lessons_1.openHomework)(homework, today, s.userhome)), true);
             await this.childLunch(s, k, today, next, after);
             await this.setStateAsync(`${k.alias}.next.date`, next, true);
@@ -263,8 +237,7 @@ class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify((0, lessons_1.homeworkDue)(homework, date, s.userhome)), true);
             }
         }
-        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify({ changed: changedShapes.slice(0, 3), siblings: siblingShapes, dailyPlan: (0, structure_1.describeDailyPlan)(s.userhome) }), true);
-        await this.setStateAsync(`debug.subst${acc}`, JSON.stringify(substShapes.slice(0, 6)), true);
+        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 8)), true);
     }
     /**
      * The menu page carries the CURRENT child's order, so it is fetched per child (right after the child switch for the

@@ -1,6 +1,5 @@
 /** Turns raw timetable items (+ the dbi lookup tables) into lessons for the panel. */
 import type { ClassbookLesson, Homework, Lunch, UserHome } from './edupage';
-import { coversLesson, teacherSwap, type SubstRow } from './subst';
 
 export interface Lesson {
     date: string;
@@ -18,7 +17,7 @@ export interface Lesson {
     subjectId: string;
     topic: string;        // "Lehrstoff" from the class register ('' if the teacher didn't enter one)
     homework: string[];   // titles of homework given in this lesson
-    substitution?: { from: string; to: string };   // F-0035: teacher short codes from the substitution plan
+    substitution?: { from: string; to: string };   // F-0035: teacher short codes (school's own), e.g. RB -> FB
 }
 
 /** Homework as shown on the panel. */
@@ -90,7 +89,11 @@ export function toText(lessons: Lesson[]): string {
  * with ' / '), else the same period; a lesson without a register entry keeps topic ''.
  * Homework: linked by id from the register, else given that day in that subject → the first such lesson only.
  */
-export function enrich(lessons: Lesson[], register: ClassbookLesson[], homework: Homework[]): Lesson[] {
+/** Teacher short code as the school uses it (dbi.teachers[id].short), '' if unknown. */
+export const teacherShort = (home: UserHome | null) => (id: string): string =>
+    String((home?.dbi?.teachers?.[String(id)] as { short?: string } | undefined)?.short ?? '').trim();
+
+export function enrich(lessons: Lesson[], register: ClassbookLesson[], homework: Homework[], short: (id: string) => string = () => ''): Lesson[] {
     const used = new Set<string>();
     return lessons.map((l) => {
         const same = register.filter((r) => r.date === l.date && r.subjectId === l.subjectId);
@@ -103,7 +106,15 @@ export function enrich(lessons: Lesson[], register: ClassbookLesson[], homework:
         const linked = new Set(rs.flatMap((x) => x.homeworkIds));
         const hw = homework.filter((h) => !used.has(h.id) && (linked.has(h.id) || (h.given === l.date && h.subjectId === l.subjectId)));
         hw.forEach((h) => used.add(h.id));
-        return { ...l, topic, homework: hw.map((h) => h.title || h.details).filter(Boolean) };
+        const out: Lesson = { ...l, topic, homework: hw.map((h) => h.title || h.details).filter(Boolean) };
+        // F-0035: substitution teacher. Only for a lesson the timetable marks as changed (not cancelled, no own note),
+        // only with short codes for both sides (never a guess, never a full name)
+        const tc = rs.map((x) => x.teacherChange).find(Boolean);
+        if (tc && l.changed && !l.cancelled && !l.note) {
+            const from = tc.old.map(short).filter(Boolean).join(', '), to = tc.new.map(short).filter(Boolean).join(', ');
+            if (from && to && from !== to) { out.note = `Vertretung ${from} → ${to}`; out.substitution = { from, to }; }
+        }
+        return out;
     });
 }
 
@@ -150,19 +161,4 @@ export function canteenText(lunch: Lunch | null): string {
     if (!lunch) return '';
     if (!lunch.cooking) return 'kein Mittagessen';
     return lunch.menus.map((m) => (m.code ? `${m.code}: ${m.dish}` : m.dish)).join('\n');
-}
-
-/**
- * F-0035: "Vertretung RB → FB" from the substitution plan rows of the child's class. Only lessons the timetable marks
- * as changed (and not cancelled) get it, only if a row covers the lesson number AND its text has the teacher swap
- * pattern; a lesson that already has its own note keeps it.
- */
-export function applySubstitutions(lessons: Lesson[], rows: SubstRow[]): Lesson[] {
-    if (!rows.length) return lessons;
-    return lessons.map((l) => {
-        if (!l.changed || l.cancelled || l.note) return l;
-        const label = l.periodLabel || l.period;
-        const swap = rows.filter((r) => coversLesson(r.lessons, label)).map((r) => teacherSwap(r.text)).find(Boolean);
-        return swap ? { ...l, note: `Vertretung ${swap.from} → ${swap.to}`, substitution: swap } : l;
-    });
 }

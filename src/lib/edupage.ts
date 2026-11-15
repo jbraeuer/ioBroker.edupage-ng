@@ -19,7 +19,26 @@ export interface Student { id: string; name: string; classId?: string }
 /** A homework item (docs/protocol.md §8). `given` = datefrom, `due` = dateto (YYYY-MM-DD). */
 export interface Homework { id: string; subjectId: string; title: string; details: string; given: string; due: string }
 /** One lesson of the class register (docs/protocol.md §9). Only what we use: the topic and linked homework. */
-export interface ClassbookLesson { date: string; start: string; period: string; subjectId: string; topic: string; homeworkIds: string[] }
+export interface ClassbookLesson {
+    date: string; start: string; period: string; subjectId: string; topic: string; homeworkIds: string[];
+    /** F-0035: substitution teacher ids (dp.changes column teacherids, else orig.teacherids vs teacherids); null = none */
+    teacherChange: { old: string[]; new: string[] } | null;
+}
+
+const ids = (v: unknown): string[] => (Array.isArray(v) ? v : v === undefined || v === null || v === '' ? [] : String(v).split(','))
+    .map((x) => String(x).trim()).filter(Boolean);
+/** F-0035 (verified live 2026-11-15 on a parent account): a substituted lesson's dp0 has
+ *  changes: [{ column: 'teacherids', old: '<id>', new: '<id>' }] and orig.teacherids = the original teacher. */
+export function teacherChangeOf(dp: Record<string, unknown>): { old: string[]; new: string[] } | null {
+    const ch = (Array.isArray(dp.changes) ? dp.changes : []).find((c) => (c as { column?: unknown })?.column === 'teacherids') as { old?: unknown; new?: unknown } | undefined;
+    let o = ids(ch?.old), n = ids(ch?.new);
+    if (!ch) {
+        o = ids((dp.orig as { teacherids?: unknown } | undefined)?.teacherids);
+        n = ids(dp.teacherids);
+        if (!o.length || !n.length || (o.length === n.length && o.every((x) => n.includes(x)))) return null;
+    }
+    return o.length && n.length ? { old: o, new: n } : null;
+}
 
 /** Lunch of one day (docs/protocol.md §7). `menus` = the choosable dishes, e.g. S = Standard-Essen, W = Wahl-Essen. */
 export interface Lunch {
@@ -96,6 +115,7 @@ export function parseClassbook(js: string): ClassbookLesson[] {
                 date: d10(dp.date ?? date), start: String(dp.starttime ?? p.starttime ?? ''), period: String(dp.uniperiod ?? p.uniperiod ?? p.period ?? ''),
                 subjectId: String(dp.subjectid ?? p.subjectid ?? ''), topic: String(dp.note_wd ?? '').trim(),
                 homeworkIds: Array.isArray(dp.homeworkids) ? (dp.homeworkids as unknown[]).map(String) : [],
+                teacherChange: teacherChangeOf(dp),
             });
         }
     }
@@ -213,12 +233,6 @@ export class EdupageSession {
         if (out.error) throw new ProtocolChanged('timetable: ' + String(out.error));
         if (!Array.isArray(out.ttitems)) throw new ProtocolChanged('timetable: no ttitems list');
         return out.ttitems as Record<string, unknown>[];
-    }
-
-    /** F-0035: the school's substitution plan of one day as HTML (read-only viewer call; '' if there is none). */
-    public async substitutionDay(date: string): Promise<string> {
-        const r = await this.call('/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml', [null, { date, mode: 'classes' }]);
-        return typeof r.r === 'string' ? r.r : '';
     }
 
     /** Lunch menus of the week that contains `date` (YYYY-MM-DD). GET only: a POST to /menu/ would order meals. */

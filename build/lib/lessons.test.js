@@ -41,7 +41,7 @@ const l = (date) => ({ date, period: '1', periodLabel: '1', periods: 1, start: '
 });
 const plus45 = (t) => { const [h, m] = t.split(':').map(Number); const x = h * 60 + m + 45; return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
 const at = (date, start, subjectId, extra = {}) => ({ ...l(date), start, end: plus45(start), subjectId, ...extra });
-const reg = (date, start, subjectId, topic, homeworkIds = []) => ({ date, start, period: '', subjectId, topic, homeworkIds });
+const reg = (date, start, subjectId, topic, homeworkIds = []) => ({ date, start, period: '', subjectId, topic, homeworkIds, teacherChange: null });
 const hw = (id, subjectId, given, due, title = 'Aufgabe ' + id) => ({ id, subjectId, title, details: '', given, due });
 const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'Englisch' } } } };
 (0, node_test_1.test)('enrich: topic from the register by date + subject + start; the timetable stays the source of truth', () => {
@@ -97,5 +97,28 @@ const HOME = { dbi: { subjects: { '11': { name: 'Mathematik' }, '12': { name: 'E
     const ls = (0, lessons_1.toLessons)([{ date: '2026-11-13', uniperiod: '2', starttime: '08:20', endtime: '10:15', durationperiods: 2, subjectid: '1', type: 'card' },
         { date: '2026-11-13', uniperiod: '6', starttime: '12:15', endtime: '13:00', subjectid: '2', type: 'card' }], { dbi });
     strict_1.default.deepEqual(ls.map((x) => [x.periodLabel, x.periods]), [['1–2', 2], ['5', 1]]);
+});
+// F-0035: substitution teacher from the class register entry
+const edupage_1 = require("./edupage");
+(0, node_test_1.test)('F-0035: teacher change from dp0.changes, else orig vs teacherids; none when equal or missing', () => {
+    strict_1.default.deepEqual((0, edupage_1.teacherChangeOf)({ changes: [{ column: 'teacherids', old: '-123', new: '-45' }] }), { old: ['-123'], new: ['-45'] });
+    strict_1.default.deepEqual((0, edupage_1.teacherChangeOf)({ changes: [{ column: 'classroomids', old: '1', new: '2' }], orig: { teacherids: ['-1'] }, teacherids: ['-2'] }), { old: ['-1'], new: ['-2'] });
+    strict_1.default.equal((0, edupage_1.teacherChangeOf)({ orig: { teacherids: ['-1'] }, teacherids: ['-1'] }), null);
+    strict_1.default.equal((0, edupage_1.teacherChangeOf)({ changes: [] }), null);
+    strict_1.default.equal((0, edupage_1.teacherChangeOf)({}), null);
+    strict_1.default.deepEqual((0, edupage_1.teacherChangeOf)({ changes: [{ column: 'teacherids', old: '-1,-2', new: ['-3'] }] }), { old: ['-1', '-2'], new: ['-3'] });
+});
+(0, node_test_1.test)('F-0035: note "Vertretung RB → FB" on the changed lesson only, with short codes; own notes, cancelled and unknown codes untouched', () => {
+    const short = (id) => ({ '-123': 'RB', '-45': 'FB' }[id] ?? '');
+    const tc = { old: ['-123'], new: ['-45'] };
+    const r = (start, subjectId, change) => ({ date: '2026-11-16', start, period: '', subjectId, topic: '', homeworkIds: [], teacherChange: change });
+    const ls = [at('2026-11-16', '10:20', '11', { changed: true }), at('2026-11-16', '11:25', '12'), at('2026-11-16', '12:15', '13', { changed: true, note: 'Raum 5' }),
+        at('2026-11-16', '13:00', '14', { cancelled: true }), at('2026-11-16', '13:45', '15', { changed: true })];
+    const out = (0, lessons_1.enrich)(ls, [r('10:20', '11', tc), r('11:25', '12', tc), r('12:15', '13', tc), r('13:00', '14', tc), r('13:45', '15', { old: ['-9'], new: ['-45'] })], [], short);
+    strict_1.default.deepEqual(out.map((l) => l.note), ['Vertretung RB → FB', '', 'Raum 5', '', '']);
+    strict_1.default.deepEqual(out[0].substitution, { from: 'RB', to: 'FB' });
+    strict_1.default.equal(out[1].substitution, undefined); // not marked changed in the timetable
+    strict_1.default.equal(out[4].substitution, undefined); // old teacher without a short code: no guess
+    strict_1.default.equal((0, lessons_1.enrich)([ls[0]], [r('10:20', '11', tc)], [])[0].note, ''); // no lookup given: nothing
 });
 //# sourceMappingURL=lessons.test.js.map
