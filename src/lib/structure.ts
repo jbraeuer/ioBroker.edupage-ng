@@ -77,3 +77,12 @@ export function describeChanged(items: Record<string, unknown>[]): unknown[] {
     return items.filter((it) => it.changed || it.removed || it.type === 'absent' || (it.flags && Object.keys(it.flags as object).length))
         .slice(0, 3).map((it) => shape(it, 3));
 }
+
+/** F-0035: HTML skeleton without content: tags with their class attribute, text masked, max `max` chars. */
+export function skeleton(html: string, max = 2500): string {
+    const out = String(html || '').replace(/<(\/?)([a-zA-Z0-9]+)([^>]*)>/g, (_, close: string, tag: string, attrs: string) => {
+        const cls = /class=["']([^"']*)["']/.exec(attrs);
+        return `<${close}${tag}${cls ? `.${cls[1].trim().replace(/\s+/g, '.')}` : ''}>`;
+    }).replace(/>([^<]+)</g, (_, t: string) => `>${mask(t)}<`);
+    return out.slice(0, max);
+}

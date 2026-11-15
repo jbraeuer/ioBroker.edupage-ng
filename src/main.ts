@@ -12,7 +12,7 @@ import * as utils from '@iobroker/adapter-core';
 import { Config, Child, validateConfig } from './lib/config';
 import { ClassbookLesson, EdupageSession, Homework, Lunch, SessionExpired } from './lib/edupage';
 import { afterSchoolDay, canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText, applySubstitutions } from './lib/lessons';
-import { describe, describeChanged, mask } from './lib/structure';
+import { describe, describeChanged, mask, skeleton } from './lib/structure';
 import { parseSubstitutions, rowsForClass, type SubstRow } from './lib/subst';
 
 const HOUR = 3600000;
@@ -193,7 +193,10 @@ export class EdupageNg extends utils.Adapter {
                     if (!substPages.has(date)) substPages.set(date, await s.substitutionDay(date));
                     const rows = rowsForClass(parseSubstitutions(substPages.get(date) ?? ''), className);
                     rowsByDate.set(date, rows);
-                    substShapes.push({ date, classFound: rows.length > 0, rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: mask(r.lessons), text: mask(r.text) })) });
+                    const page = substPages.get(date) ?? '';
+                    substShapes.push({ date, classFound: rows.length > 0, childClass: mask(className), classes: parseSubstitutions(page).map((c) => mask(c.className)).slice(0, 30),
+                        rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: mask(r.lessons), text: mask(r.text) })),
+                        ...(substShapes.length === 0 ? { length: page.length, skeleton: skeleton(page) } : {}) });
                 } catch (e) {
                     this.log.warn(`substitution plan ${date}: ${(e as Error).message}`);   // the timetable still works without it
                 }

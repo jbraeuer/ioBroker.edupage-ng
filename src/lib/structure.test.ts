@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describe, describeChanged, mask } from './structure';
+import { describe, describeChanged, mask, skeleton } from './structure';
 
 test('describe(): shape only, no content leaks', () => {
     const secret = 'Mathe S. 12 Nr. 3 – Anna Beispiel';
@@ -41,4 +41,10 @@ test('F-0035: substitution items and changed lessons: shape only, masked text, n
     const c = JSON.stringify(describeChanged([{ subjectid: '12', teacherids: ['22'], changed: true, flags: {} }, { subjectid: '1' }]));
     assert.ok(!c.includes('"12"') && c.includes('teacherids') && c.includes('changed'), c);
     assert.equal(mask('\u00c4 \u00f6 9:x'), 'A a 9:a');
+});
+
+test('F-0035: skeleton keeps tags and classes, masks every text', () => {
+    const k = skeleton('<div class="section print-nobreak"><div class="header"><span>6b Anna</span></div><a href="x?u=Anna">Mehr</a></div>');
+    assert.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
+    assert.ok(!k.includes('Anna'));
 });

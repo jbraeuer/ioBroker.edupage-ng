@@ -234,7 +234,10 @@ class EdupageNg extends utils.Adapter {
                         substPages.set(date, await s.substitutionDay(date));
                     const rows = (0, subst_1.rowsForClass)((0, subst_1.parseSubstitutions)(substPages.get(date) ?? ''), className);
                     rowsByDate.set(date, rows);
-                    substShapes.push({ date, classFound: rows.length > 0, rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: (0, structure_1.mask)(r.lessons), text: (0, structure_1.mask)(r.text) })) });
+                    const page = substPages.get(date) ?? '';
+                    substShapes.push({ date, classFound: rows.length > 0, childClass: (0, structure_1.mask)(className), classes: (0, subst_1.parseSubstitutions)(page).map((c) => (0, structure_1.mask)(c.className)).slice(0, 30),
+                        rows: rows.slice(0, 6).map((r) => ({ action: r.action, lessons: (0, structure_1.mask)(r.lessons), text: (0, structure_1.mask)(r.text) })),
+                        ...(substShapes.length === 0 ? { length: page.length, skeleton: (0, structure_1.skeleton)(page) } : {}) });
                 }
                 catch (e) {
                     this.log.warn(`substitution plan ${date}: ${e.message}`); // the timetable still works without it

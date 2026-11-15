@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "news": {
+      "0.0.14": { "en": "Discovery: masked skeleton of the substitution plan page (debug.substN).", "de": "Erkundung: maskiertes Ger\u00fcst der Vertretungsplan-Seite (debug.substN)." },
       "0.0.13": { "en": "Substitution teacher: note \"Vertretung RB \u2192 FB\" on changed lessons (from the school's substitution plan, teacher short codes); debug.substN (masked).", "de": "Vertretungslehrer: Hinweis \"Vertretung RB \u2192 FB\" bei ge\u00e4nderten Stunden (aus dem Vertretungsplan, K\u00fcrzel); debug.substN (maskiert)." },
       "0.0.12": { "en": "Discovery (shape only): substitution timeline items, teacher row keys, changed timetable items (debug.*).", "de": "Erkundung (nur Struktur): Vertretungs-Einträge, Lehrer-Felder, geänderte Stunden (debug.*)." },
       "0.0.11": { "en": "Day after next: <child>.after.* (lessons, changes, text, end, homework, homeworkDue, lunch, date, label) and canteen.after.* (the school day after the next one).", "de": "Übernächster Schultag: <child>.after.* (Stunden, Vertretungen, Text, Schluss, Hausaufgaben, Essen, Datum, Label) und canteen.after.* (der Schultag nach dem nächsten)." },

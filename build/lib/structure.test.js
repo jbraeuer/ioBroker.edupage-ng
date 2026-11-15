@@ -46,4 +46,9 @@ const structure_1 = require("./structure");
     strict_1.default.ok(!c.includes('"12"') && c.includes('teacherids') && c.includes('changed'), c);
     strict_1.default.equal((0, structure_1.mask)('\u00c4 \u00f6 9:x'), 'A a 9:a');
 });
+(0, node_test_1.test)('F-0035: skeleton keeps tags and classes, masks every text', () => {
+    const k = (0, structure_1.skeleton)('<div class="section print-nobreak"><div class="header"><span>6b Anna</span></div><a href="x?u=Anna">Mehr</a></div>');
+    strict_1.default.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
+    strict_1.default.ok(!k.includes('Anna'));
+});
 //# sourceMappingURL=structure.test.js.map

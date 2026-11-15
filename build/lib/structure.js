@@ -4,6 +4,7 @@ exports.mask = void 0;
 exports.shape = shape;
 exports.describe = describe;
 exports.describeChanged = describeChanged;
+exports.skeleton = skeleton;
 const kind = (v) => (Array.isArray(v) ? `array(${v.length})` : v === null ? 'null' : typeof v === 'object' ? `object(${Object.keys(v).length})` : typeof v);
 const HINT = /homework|ulohy|uloha|hw|tema|topic|dennik|plan|lesson|etest|test|znamk|grade/i;
 const keysOf = (v) => {
@@ -82,5 +83,13 @@ function describe(home) {
 function describeChanged(items) {
     return items.filter((it) => it.changed || it.removed || it.type === 'absent' || (it.flags && Object.keys(it.flags).length))
         .slice(0, 3).map((it) => shape(it, 3));
+}
+/** F-0035: HTML skeleton without content: tags with their class attribute, text masked, max `max` chars. */
+function skeleton(html, max = 2500) {
+    const out = String(html || '').replace(/<(\/?)([a-zA-Z0-9]+)([^>]*)>/g, (_, close, tag, attrs) => {
+        const cls = /class=["']([^"']*)["']/.exec(attrs);
+        return `<${close}${tag}${cls ? `.${cls[1].trim().replace(/\s+/g, '.')}` : ''}>`;
+    }).replace(/>([^<]+)</g, (_, t) => `>${(0, exports.mask)(t)}<`);
+    return out.slice(0, max);
 }
 //# sourceMappingURL=structure.js.map
