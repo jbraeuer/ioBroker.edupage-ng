@@ -86,3 +86,23 @@ export function skeleton(html: string, max = 2500): string {
     }).replace(/>([^<]+)</g, (_, t: string) => `>${mask(t)}<`);
     return out.slice(0, max);
 }
+
+/** F-0035: for the first changed lessons, ALL timetable items at the same date + period (the original lesson may be a
+ *  separate item), as shapes. Also which keys differ between them. */
+export function describeSiblings(items: Record<string, unknown>[], max = 2): unknown[] {
+    const changed = items.filter((it) => it.changed).slice(0, max);
+    return changed.map((c) => {
+        const same = items.filter((it) => it.date === c.date && String(it.uniperiod) === String(c.uniperiod));
+        return { count: same.length, items: same.slice(0, 4).map((it) => shape(it, 3)) };
+    });
+}
+
+/** F-0035: shape of userhome.dp (daily plan) for the first date that has entries, 5 levels, masked. */
+export function describeDailyPlan(home: unknown): unknown {
+    const dp = (home as { dp?: Record<string, unknown> } | null)?.dp;
+    if (!dp || typeof dp !== 'object') return null;
+    const top = Object.fromEntries(Object.keys(dp).slice(0, 30).map((k) => [k, kind(dp[k])]));
+    const dates = (dp.dates ?? {}) as Record<string, unknown>;
+    const first = Object.keys(dates).sort().find((d) => dates[d] && typeof dates[d] === 'object');
+    return { top, firstDate: first ? shape(dates[first], 5) : null };
+}

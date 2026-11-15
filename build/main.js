@@ -205,6 +205,7 @@ class EdupageNg extends utils.Adapter {
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
         const changedShapes = [];
+        const siblingShapes = [];
         const substPages = new Map(); // date -> viewer HTML (one call per date and account)
         const substShapes = [];
         for (const k of kids) {
@@ -216,6 +217,8 @@ class EdupageNg extends utils.Adapter {
                 await s.switchChild(st.id);
             const rawItems = await s.timetable(st.id, today, until);
             changedShapes.push(...(0, structure_1.describeChanged)(rawItems));
+            if (!siblingShapes.length)
+                siblingShapes.push(...(0, structure_1.describeSiblings)(rawItems));
             const plain = (0, lessons_1.toLessons)(rawItems, s.userhome);
             const next = (0, lessons_1.nextSchoolDay)(plain, today);
             const after = (0, lessons_1.afterSchoolDay)(plain, next);
@@ -260,7 +263,7 @@ class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify((0, lessons_1.homeworkDue)(homework, date, s.userhome)), true);
             }
         }
-        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 3)), true);
+        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify({ changed: changedShapes.slice(0, 3), siblings: siblingShapes, dailyPlan: (0, structure_1.describeDailyPlan)(s.userhome) }), true);
         await this.setStateAsync(`debug.subst${acc}`, JSON.stringify(substShapes.slice(0, 6)), true);
     }
     /**

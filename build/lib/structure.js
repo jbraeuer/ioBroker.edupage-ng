@@ -5,6 +5,8 @@ exports.shape = shape;
 exports.describe = describe;
 exports.describeChanged = describeChanged;
 exports.skeleton = skeleton;
+exports.describeSiblings = describeSiblings;
+exports.describeDailyPlan = describeDailyPlan;
 const kind = (v) => (Array.isArray(v) ? `array(${v.length})` : v === null ? 'null' : typeof v === 'object' ? `object(${Object.keys(v).length})` : typeof v);
 const HINT = /homework|ulohy|uloha|hw|tema|topic|dennik|plan|lesson|etest|test|znamk|grade/i;
 const keysOf = (v) => {
@@ -91,5 +93,24 @@ function skeleton(html, max = 2500) {
         return `<${close}${tag}${cls ? `.${cls[1].trim().replace(/\s+/g, '.')}` : ''}>`;
     }).replace(/>([^<]+)</g, (_, t) => `>${(0, exports.mask)(t)}<`);
     return out.slice(0, max);
+}
+/** F-0035: for the first changed lessons, ALL timetable items at the same date + period (the original lesson may be a
+ *  separate item), as shapes. Also which keys differ between them. */
+function describeSiblings(items, max = 2) {
+    const changed = items.filter((it) => it.changed).slice(0, max);
+    return changed.map((c) => {
+        const same = items.filter((it) => it.date === c.date && String(it.uniperiod) === String(c.uniperiod));
+        return { count: same.length, items: same.slice(0, 4).map((it) => shape(it, 3)) };
+    });
+}
+/** F-0035: shape of userhome.dp (daily plan) for the first date that has entries, 5 levels, masked. */
+function describeDailyPlan(home) {
+    const dp = home?.dp;
+    if (!dp || typeof dp !== 'object')
+        return null;
+    const top = Object.fromEntries(Object.keys(dp).slice(0, 30).map((k) => [k, kind(dp[k])]));
+    const dates = (dp.dates ?? {});
+    const first = Object.keys(dates).sort().find((d) => dates[d] && typeof dates[d] === 'object');
+    return { top, firstDate: first ? shape(dates[first], 5) : null };
 }
 //# sourceMappingURL=structure.js.map

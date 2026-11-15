@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describe, describeChanged, mask, skeleton } from './structure';
+import { describe, describeChanged, describeDailyPlan, describeSiblings, mask, skeleton } from './structure';
 
 test('describe(): shape only, no content leaks', () => {
     const secret = 'Mathe S. 12 Nr. 3 – Anna Beispiel';
@@ -47,4 +47,19 @@ test('F-0035: skeleton keeps tags and classes, masks every text', () => {
     const k = skeleton('<div class="section print-nobreak"><div class="header"><span>6b Anna</span></div><a href="x?u=Anna">Mehr</a></div>');
     assert.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
     assert.ok(!k.includes('Anna'));
+});
+
+test('F-0035: siblings of a changed lesson and the daily plan: shapes only', () => {
+    const items = [
+        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['22'], changed: true },
+        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['11'], removed: true },
+        { date: '2026-11-16', uniperiod: '5', subjectid: '3', teacherids: ['33'] },
+    ];
+    const sib = describeSiblings(items) as { count: number }[];
+    assert.equal(sib[0].count, 2);
+    assert.ok(!JSON.stringify(sib).includes('"22"') && JSON.stringify(sib).includes('removed'));
+    const dp = describeDailyPlan({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'RB FB' }] } } } }) as { top: object; firstDate: unknown };
+    assert.deepEqual(dp.top, { year: 'number', dates: 'object(1)' });
+    assert.ok(!JSON.stringify(dp).includes('RB'));
+    assert.equal(describeDailyPlan(null), null);
 });

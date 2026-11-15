@@ -51,4 +51,18 @@ const structure_1 = require("./structure");
     strict_1.default.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
     strict_1.default.ok(!k.includes('Anna'));
 });
+(0, node_test_1.test)('F-0035: siblings of a changed lesson and the daily plan: shapes only', () => {
+    const items = [
+        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['22'], changed: true },
+        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['11'], removed: true },
+        { date: '2026-11-16', uniperiod: '5', subjectid: '3', teacherids: ['33'] },
+    ];
+    const sib = (0, structure_1.describeSiblings)(items);
+    strict_1.default.equal(sib[0].count, 2);
+    strict_1.default.ok(!JSON.stringify(sib).includes('"22"') && JSON.stringify(sib).includes('removed'));
+    const dp = (0, structure_1.describeDailyPlan)({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'RB FB' }] } } } });
+    strict_1.default.deepEqual(dp.top, { year: 'number', dates: 'object(1)' });
+    strict_1.default.ok(!JSON.stringify(dp).includes('RB'));
+    strict_1.default.equal((0, structure_1.describeDailyPlan)(null), null);
+});
 //# sourceMappingURL=structure.test.js.map

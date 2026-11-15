@@ -12,7 +12,7 @@ import * as utils from '@iobroker/adapter-core';
 import { Config, Child, validateConfig } from './lib/config';
 import { ClassbookLesson, EdupageSession, Homework, Lunch, SessionExpired } from './lib/edupage';
 import { afterSchoolDay, canteenText, dayLabel, enrich, homeworkDue, homeworkGiven, lastEnd, nextSchoolDay, openHomework, toLessons, toText, applySubstitutions } from './lib/lessons';
-import { describe, describeChanged, mask, skeleton } from './lib/structure';
+import { describe, describeChanged, describeDailyPlan, describeSiblings, mask, skeleton } from './lib/structure';
 import { parseSubstitutions, rowsForClass, type SubstRow } from './lib/subst';
 
 const HOUR = 3600000;
@@ -169,6 +169,7 @@ export class EdupageNg extends utils.Adapter {
         const now = new Date(), today = ymd(now);
         const until = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + LOOKAHEAD_DAYS, 12));
         const changedShapes: unknown[] = [];
+        const siblingShapes: unknown[] = [];
         const substPages = new Map<string, string>();   // date -> viewer HTML (one call per date and account)
         const substShapes: unknown[] = [];
         for (const k of kids) {
@@ -179,6 +180,7 @@ export class EdupageNg extends utils.Adapter {
             if (s.isParent) await s.switchChild(st.id);
             const rawItems = await s.timetable(st.id, today, until);
             changedShapes.push(...describeChanged(rawItems));
+            if (!siblingShapes.length) siblingShapes.push(...describeSiblings(rawItems));
             const plain = toLessons(rawItems, s.userhome);
             const next = nextSchoolDay(plain, today);
             const after = afterSchoolDay(plain, next);
@@ -218,7 +220,7 @@ export class EdupageNg extends utils.Adapter {
                 await this.setStateAsync(`${k.alias}.${day}.homeworkDue`, JSON.stringify(homeworkDue(homework, date, s.userhome)), true);
             }
         }
-        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify(changedShapes.slice(0, 3)), true);
+        await this.setStateAsync(`debug.changed${acc}`, JSON.stringify({ changed: changedShapes.slice(0, 3), siblings: siblingShapes, dailyPlan: describeDailyPlan(s.userhome) }), true);
         await this.setStateAsync(`debug.subst${acc}`, JSON.stringify(substShapes.slice(0, 6)), true);
     }
 
