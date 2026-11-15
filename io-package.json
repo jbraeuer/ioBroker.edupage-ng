@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.16",
+    "version": "0.0.17",
     "news": {
+      "0.0.17": { "en": "Discovery: daily plan entries of changed lessons (masked).", "de": "Erkundung: Tagesplan-Eintr\u00e4ge ge\u00e4nderter Stunden (maskiert)." },
       "0.0.16": { "en": "Discovery: non-empty daily plan entries (masked).", "de": "Erkundung: nicht leere Tagesplan-Eintr\u00e4ge (maskiert)." },
       "0.0.15": { "en": "Discovery: timetable items next to a changed lesson and the daily plan shape (debug.changedN).", "de": "Erkundung: Stundenplan-Eintr\u00e4ge neben einer ge\u00e4nderten Stunde und Tagesplan-Struktur (debug.changedN)." },
       "0.0.14": { "en": "Discovery: masked skeleton of the substitution plan page (debug.substN).", "de": "Erkundung: maskiertes Ger\u00fcst der Vertretungsplan-Seite (debug.substN)." },

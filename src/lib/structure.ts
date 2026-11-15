@@ -108,7 +108,12 @@ export function describeDailyPlan(home: unknown): unknown {
     const perDate = Object.keys(dates).sort().map((d) => {
         const plan = ((dates[d] as { plan?: unknown[] } | null)?.plan ?? []) as Record<string, unknown>[];
         const busy = plan.filter((it) => it && (full(it.header) || full(it.flags) || full(it.fields) || full(it.teacherids)));
-        return { entries: plan.length, busy: busy.length, items: busy.slice(0, 6).map((it) => shape(it, 6)) };
+        // F-0035: entries of a changed lesson: dp0.changes / orig / substids not empty
+        const dp0 = (it: Record<string, unknown>): Record<string, unknown> => ((it.flags as { dp0?: Record<string, unknown> } | undefined)?.dp0 ?? {});
+        const changed = busy.filter((it) => full(dp0(it).changes) || full(dp0(it).orig) || full(dp0(it).substids));
+        return { entries: plan.length, busy: busy.length, changed: changed.length,
+            items: changed.slice(0, 3).map((it) => ({ infos: shape(it.infos, 6), header: shape(it.header, 6), changes: shape(dp0(it).changes, 6), orig: shape(dp0(it).orig, 5),
+                substids: shape(dp0(it).substids, 4), teacherids: shape(dp0(it).teacherids, 3), studentsinfo: shape(dp0(it).studentsinfo, 5) })) };
     });
     return { top, perDate };
 }
