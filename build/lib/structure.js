@@ -110,7 +110,13 @@ function describeDailyPlan(home) {
         return null;
     const top = Object.fromEntries(Object.keys(dp).slice(0, 30).map((k) => [k, kind(dp[k])]));
     const dates = (dp.dates ?? {});
-    const first = Object.keys(dates).sort().find((d) => dates[d] && typeof dates[d] === 'object');
-    return { top, firstDate: first ? shape(dates[first], 5) : null };
+    // per date: the plan entries that carry something (header / flags / fields / teachers), 6 levels, max 6 per date
+    const full = (v) => (Array.isArray(v) ? v.length > 0 : !!v && typeof v === 'object' && Object.keys(v).length > 0);
+    const perDate = Object.keys(dates).sort().map((d) => {
+        const plan = (dates[d]?.plan ?? []);
+        const busy = plan.filter((it) => it && (full(it.header) || full(it.flags) || full(it.fields) || full(it.teacherids)));
+        return { entries: plan.length, busy: busy.length, items: busy.slice(0, 6).map((it) => shape(it, 6)) };
+    });
+    return { top, perDate };
 }
 //# sourceMappingURL=structure.js.map

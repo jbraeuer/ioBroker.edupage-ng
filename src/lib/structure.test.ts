@@ -58,7 +58,8 @@ test('F-0035: siblings of a changed lesson and the daily plan: shapes only', () 
     const sib = describeSiblings(items) as { count: number }[];
     assert.equal(sib[0].count, 2);
     assert.ok(!JSON.stringify(sib).includes('"22"') && JSON.stringify(sib).includes('removed'));
-    const dp = describeDailyPlan({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'RB FB' }] } } } }) as { top: object; firstDate: unknown };
+    const dp = describeDailyPlan({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'x', header: [] }, { header: [{ text: 'RB FB' }] }] } } } }) as { top: object; perDate: { entries: number; busy: number }[] };
+    assert.deepEqual([dp.perDate[0].entries, dp.perDate[0].busy], [2, 1]);
     assert.deepEqual(dp.top, { year: 'number', dates: 'object(1)' });
     assert.ok(!JSON.stringify(dp).includes('RB'));
     assert.equal(describeDailyPlan(null), null);
