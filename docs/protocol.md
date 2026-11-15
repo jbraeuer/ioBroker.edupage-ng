@@ -42,9 +42,9 @@ POST `/timetable/server/currenttt.js?__func=curentttGetData` (sic), JSON:
 - One request for today … today+10 (`datefrom`…`dateto`); the next school day = first later date with lessons. *(10-day range: unverified live)*
 - `{"reload": …}` = session expired → re-login once.
 
-## 6. Substitutions *(used since 0.0.13, F-0035)*
-POST `/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml`, JSON `{"__args": [null, {"date": "YYYY-MM-DD", "mode": "classes"}], "__gsh": …}` → `r` = an HTML string, per class. We keep only the child's class.
-Verified live 2026-11-15: changed ttitems carry only `changed: true` and the NEW `teacherids` (no old teacher); the timeline item `typ: substitution` is only a notice (`data` = `{date: true}`). The old → new teacher short codes come from this viewer. Called only for dates with a changed lesson, once per date and account.
+## 6. Substitutions (who replaces whom)
+The substitution plan viewer (`/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml`) is **not used**: for parents at this school it answers with a short "not available" text (checked live 2026-11-15, 0.0.13/14). The timeline item `typ: substitution` is only a notice (`data` = `{date: true}`); changed ttitems carry only `changed: true` and the NEW `teacherids`.
+**Source (0.0.18+):** the class register data (§9): a substituted lesson's `flags.dp0` has `changes: [{column: 'teacherids', old: '<id>', new: '<id>'}]` (fallback: `orig.teacherids` vs `teacherids`), mapped to `dbi.teachers[id].short` → note "Vertretung RB → FB". Only for a lesson the timetable marks changed, only from a register entry matched by start or period, only if every teacher has a short code.
 
 ## 7. Canteen (read-only)
 - **Only** GET `/menu/?date=YYYYMMDD`. The page contains a JS literal `edupageData: {…}`; menus per date and meal (1 snack, 2 lunch, 3 afternoon).

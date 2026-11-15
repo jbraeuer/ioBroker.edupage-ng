@@ -14,7 +14,7 @@ const files = (dir) => (0, node_fs_1.readdirSync)(dir).flatMap((f) => ((0, node_
 (0, node_test_1.test)('no meal ordering / cancelling / rating calls in the source', () => {
     for (const f of files(SRC)) {
         const s = (0, node_fs_1.readFileSync)(f, 'utf8');
-        for (const bad of ['ulozJedlaStravnika', 'ulozHodnotenia', 'edubarLogin.php']) {
+        for (const bad of ['ulozJedlaStravnika', 'ulozHodnotenia', 'edubarLogin.php', 'getSubstViewerDayDataHtml', 'substitution/server/viewer.js']) {
             strict_1.default.ok(!s.includes(bad), `${f} contains forbidden call ${bad}`);
         }
         strict_1.default.ok(!/post[^\n]*['"`]\/menu\//i.test(s), `${f} POSTs to /menu/ (would order meals)`);

@@ -121,4 +121,13 @@ const edupage_1 = require("./edupage");
     strict_1.default.equal(out[4].substitution, undefined); // old teacher without a short code: no guess
     strict_1.default.equal((0, lessons_1.enrich)([ls[0]], [r('10:20', '11', tc)], [])[0].note, ''); // no lookup given: nothing
 });
+(0, node_test_1.test)('F-0035 review: no substitution note from the only-entry fallback; a teacher without a code = no note', () => {
+    const short = (id) => ({ '-123': 'RB', '-45': 'FB' }[id] ?? '');
+    const tc = { old: ['-123'], new: ['-45'] };
+    const ls = [at('2026-11-16', '08:00', '11', { changed: true, period: '2' }), at('2026-11-16', '12:15', '11', { changed: true, period: '5' })];
+    const out = (0, lessons_1.enrich)(ls, [{ date: '2026-11-16', start: '12:15', period: '5', subjectId: '11', topic: '', homeworkIds: [], teacherChange: tc }], [], short);
+    strict_1.default.deepEqual(out.map((l) => l.note), ['', 'Vertretung RB → FB']);
+    const one = (0, lessons_1.enrich)([at('2026-11-16', '10:20', '11', { changed: true })], [{ date: '2026-11-16', start: '10:20', period: '', subjectId: '11', topic: '', homeworkIds: [], teacherChange: { old: ['-123', '-9'], new: ['-45'] } }], [], short);
+    strict_1.default.equal(one[0].note, '');
+});
 //# sourceMappingURL=lessons.test.js.map

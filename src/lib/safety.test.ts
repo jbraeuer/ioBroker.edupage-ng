@@ -12,7 +12,7 @@ const files = (dir: string): string[] =>
 test('no meal ordering / cancelling / rating calls in the source', () => {
     for (const f of files(SRC)) {
         const s = readFileSync(f, 'utf8');
-        for (const bad of ['ulozJedlaStravnika', 'ulozHodnotenia', 'edubarLogin.php']) {
+        for (const bad of ['ulozJedlaStravnika', 'ulozHodnotenia', 'edubarLogin.php', 'getSubstViewerDayDataHtml', 'substitution/server/viewer.js']) {
             assert.ok(!s.includes(bad), `${f} contains forbidden call ${bad}`);
         }
         assert.ok(!/post[^\n]*['"`]\/menu\//i.test(s), `${f} POSTs to /menu/ (would order meals)`);

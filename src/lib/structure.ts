@@ -13,7 +13,9 @@ const keysOf = (v: unknown): string[] => {
 };
 /** Text shape without content (F-0035): capital -> A, lowercase -> a, digit -> 9, whitespace -> ' '; symbols stay
  *  (arrows, colons, dots, brackets). Max 80 chars. "3. Std WAT: RB -> FB" becomes "9. Aaa AAA: AA -> AA". */
-export const mask = (t: string): string => t.slice(0, 80).replace(/\p{Lu}/gu, 'A').replace(/\p{Ll}/gu, 'a').replace(/\p{Nd}/gu, '9').replace(/\s+/g, ' ');
+export const mask = (t: string): string => t.normalize('NFC').slice(0, 80).replace(/\p{M}/gu, '').replace(/\p{L}/gu, (c) => (/\p{Lu}/u.test(c) ? 'A' : 'a')).replace(/\p{N}/gu, '9').replace(/\s+/g, ' ');
+/** Object keys: dates -> DATE, numeric ids -> ID, plain field names stay, anything else masked (review: no names/ids as keys). */
+const keyShape = (k: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(k) ? 'DATE' : /^-?\d+$/.test(k) ? 'ID' : /^[a-z_][a-zA-Z0-9_]*$/.test(k) ? k : `KEY:${mask(k)}`);
 /** Shape of a value: objects -> key: shape (date keys -> DATE), arrays -> first 3 elements, strings -> mask, else the type. */
 export function shape(v: unknown, depth = 3): unknown {
     if (typeof v === 'string') {
@@ -23,7 +25,7 @@ export function shape(v: unknown, depth = 3): unknown {
     if (v === null || typeof v !== 'object') return typeof v;
     if (depth <= 0) return kind(v);
     if (Array.isArray(v)) return { [`array(${v.length})`]: v.slice(0, 3).map((x) => shape(x, depth - 1)) };
-    return Object.fromEntries(Object.keys(v).slice(0, 30).map((k) => [/^\d{4}-\d{2}-\d{2}$/.test(k) ? 'DATE' : k, shape((v as Record<string, unknown>)[k], depth - 1)]));
+    return Object.fromEntries(Object.keys(v).slice(0, 30).map((k) => [keyShape(k), shape((v as Record<string, unknown>)[k], depth - 1)]));
 }
 const day = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 
@@ -78,42 +80,3 @@ export function describeChanged(items: Record<string, unknown>[]): unknown[] {
         .slice(0, 3).map((it) => shape(it, 3));
 }
 
-/** F-0035: HTML skeleton without content: tags with their class attribute, text masked, max `max` chars. */
-export function skeleton(html: string, max = 2500): string {
-    const out = String(html || '').replace(/<(\/?)([a-zA-Z0-9]+)([^>]*)>/g, (_, close: string, tag: string, attrs: string) => {
-        const cls = /class=["']([^"']*)["']/.exec(attrs);
-        return `<${close}${tag}${cls ? `.${cls[1].trim().replace(/\s+/g, '.')}` : ''}>`;
-    }).replace(/>([^<]+)</g, (_, t: string) => `>${mask(t)}<`);
-    return out.slice(0, max);
-}
-
-/** F-0035: for the first changed lessons, ALL timetable items at the same date + period (the original lesson may be a
- *  separate item), as shapes. Also which keys differ between them. */
-export function describeSiblings(items: Record<string, unknown>[], max = 2): unknown[] {
-    const changed = items.filter((it) => it.changed).slice(0, max);
-    return changed.map((c) => {
-        const same = items.filter((it) => it.date === c.date && String(it.uniperiod) === String(c.uniperiod));
-        return { count: same.length, items: same.slice(0, 4).map((it) => shape(it, 3)) };
-    });
-}
-
-/** F-0035: shape of userhome.dp (daily plan) for the first date that has entries, 5 levels, masked. */
-export function describeDailyPlan(home: unknown): unknown {
-    const dp = (home as { dp?: Record<string, unknown> } | null)?.dp;
-    if (!dp || typeof dp !== 'object') return null;
-    const top = Object.fromEntries(Object.keys(dp).slice(0, 30).map((k) => [k, kind(dp[k])]));
-    const dates = (dp.dates ?? {}) as Record<string, unknown>;
-    // per date: the plan entries that carry something (header / flags / fields / teachers), 6 levels, max 6 per date
-    const full = (v: unknown): boolean => (Array.isArray(v) ? v.length > 0 : !!v && typeof v === 'object' && Object.keys(v).length > 0);
-    const perDate = Object.keys(dates).sort().map((d) => {
-        const plan = ((dates[d] as { plan?: unknown[] } | null)?.plan ?? []) as Record<string, unknown>[];
-        const busy = plan.filter((it) => it && (full(it.header) || full(it.flags) || full(it.fields) || full(it.teacherids)));
-        // F-0035: entries of a changed lesson: dp0.changes / orig / substids not empty
-        const dp0 = (it: Record<string, unknown>): Record<string, unknown> => ((it.flags as { dp0?: Record<string, unknown> } | undefined)?.dp0 ?? {});
-        const changed = busy.filter((it) => full(dp0(it).changes) || full(dp0(it).orig) || full(dp0(it).substids));
-        return { entries: plan.length, busy: busy.length, changed: changed.length,
-            items: changed.slice(0, 3).map((it) => ({ infos: shape(it.infos, 6), header: shape(it.header, 6), changes: shape(dp0(it).changes, 6), orig: shape(dp0(it).orig, 5),
-                substids: shape(dp0(it).substids, 4), teacherids: shape(dp0(it).teacherids, 3), studentsinfo: shape(dp0(it).studentsinfo, 5) })) };
-    });
-    return { top, perDate };
-}

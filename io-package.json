@@ -1,8 +1,9 @@
 {
   "common": {
     "name": "edupage-ng",
-    "version": "0.0.18",
+    "version": "0.0.19",
     "news": {
+      "0.0.19": { "en": "Review fixes: substitution note only from an exact register match and only with every short code; debug keys guarded; dead discovery code removed.", "de": "Review-Korrekturen: Vertretungs-Hinweis nur bei genauer Zuordnung und nur mit allen K\u00fcrzeln; Debug-Schl\u00fcssel gesch\u00fctzt; alter Erkundungscode entfernt." },
       "0.0.18": { "en": "Substitution teacher: note \"Vertretung RB \u2192 FB\" (school short codes) on changed lessons, from the class register data the adapter already loads; the substitution plan viewer (not public for parents) is no longer called.", "de": "Vertretungslehrer: Hinweis \"Vertretung RB \u2192 FB\" (K\u00fcrzel der Schule) bei ge\u00e4nderten Stunden, aus den Klassenbuch-Daten; der Vertretungsplan (f\u00fcr Eltern nicht \u00f6ffentlich) wird nicht mehr abgefragt." },
       "0.0.17": { "en": "Discovery: daily plan entries of changed lessons (masked).", "de": "Erkundung: Tagesplan-Eintr\u00e4ge ge\u00e4nderter Stunden (maskiert)." },
       "0.0.16": { "en": "Discovery: non-empty daily plan entries (masked).", "de": "Erkundung: nicht leere Tagesplan-Eintr\u00e4ge (maskiert)." },

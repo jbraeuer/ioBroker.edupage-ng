@@ -46,24 +46,11 @@ const structure_1 = require("./structure");
     strict_1.default.ok(!c.includes('"12"') && c.includes('teacherids') && c.includes('changed'), c);
     strict_1.default.equal((0, structure_1.mask)('\u00c4 \u00f6 9:x'), 'A a 9:a');
 });
-(0, node_test_1.test)('F-0035: skeleton keeps tags and classes, masks every text', () => {
-    const k = (0, structure_1.skeleton)('<div class="section print-nobreak"><div class="header"><span>6b Anna</span></div><a href="x?u=Anna">Mehr</a></div>');
-    strict_1.default.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
-    strict_1.default.ok(!k.includes('Anna'));
-});
-(0, node_test_1.test)('F-0035: siblings of a changed lesson and the daily plan: shapes only', () => {
-    const items = [
-        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['22'], changed: true },
-        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['11'], removed: true },
-        { date: '2026-11-16', uniperiod: '5', subjectid: '3', teacherids: ['33'] },
-    ];
-    const sib = (0, structure_1.describeSiblings)(items);
-    strict_1.default.equal(sib[0].count, 2);
-    strict_1.default.ok(!JSON.stringify(sib).includes('"22"') && JSON.stringify(sib).includes('removed'));
-    const dp = (0, structure_1.describeDailyPlan)({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'x', header: [] }, { header: [{ text: 'RB FB' }] }] } } } });
-    strict_1.default.deepEqual([dp.perDate[0].entries, dp.perDate[0].busy], [2, 1]);
-    strict_1.default.deepEqual(dp.top, { year: 'number', dates: 'object(1)' });
-    strict_1.default.ok(!JSON.stringify(dp).includes('RB'));
-    strict_1.default.equal((0, structure_1.describeDailyPlan)(null), null);
+(0, node_test_1.test)('F-0035 review: keys that are ids or names never appear; mask covers NFD, caseless letters, other digits', () => {
+    const out = JSON.stringify((0, structure_1.describeChanged)([{ changed: true, studentids: { '4711': 'x' }, m: { 'Felix Beyer': 1 } }]));
+    for (const bad of ['4711', 'Felix', 'Beyer'])
+        strict_1.default.ok(!out.includes(bad), out);
+    strict_1.default.equal((0, structure_1.mask)('Mu\u0308ller'), 'Aaaaaa');
+    strict_1.default.equal((0, structure_1.mask)('\u5f20 \u00b2'), 'a 9');
 });
 //# sourceMappingURL=structure.test.js.map

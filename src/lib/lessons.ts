@@ -99,9 +99,9 @@ export function enrich(lessons: Lesson[], register: ClassbookLesson[], homework:
         const same = register.filter((r) => r.date === l.date && r.subjectId === l.subjectId);
         // a double lesson is ONE timetable entry (durationperiods 2) but one register entry per period (live 2026-11-13):
         // take every register entry of the subject that starts inside the lesson's time span
-        let rs = same.filter((x) => x.start && l.start && x.start >= l.start && (l.end ? x.start < l.end : x.start === l.start));
-        if (!rs.length) rs = same.filter((x) => x.period && x.period === l.period);
-        if (!rs.length && same.length === 1) rs = same;
+        let exact = same.filter((x) => x.start && l.start && x.start >= l.start && (l.end ? x.start < l.end : x.start === l.start));
+        if (!exact.length) exact = same.filter((x) => x.period && x.period === l.period);
+        const rs = exact.length ? exact : same.length === 1 ? same : [];   // topic/homework may use the only-entry fallback
         const topic = [...new Set(rs.map((x) => x.topic).filter(Boolean))].join(' / ');
         const linked = new Set(rs.flatMap((x) => x.homeworkIds));
         const hw = homework.filter((h) => !used.has(h.id) && (linked.has(h.id) || (h.given === l.date && h.subjectId === l.subjectId)));
@@ -109,9 +109,11 @@ export function enrich(lessons: Lesson[], register: ClassbookLesson[], homework:
         const out: Lesson = { ...l, topic, homework: hw.map((h) => h.title || h.details).filter(Boolean) };
         // F-0035: substitution teacher. Only for a lesson the timetable marks as changed (not cancelled, no own note),
         // only with short codes for both sides (never a guess, never a full name)
-        const tc = rs.map((x) => x.teacherChange).find(Boolean);
+        // review: the teacher change never comes from the only-entry fallback (it could belong to another lesson of the subject)
+        const tc = exact.map((x) => x.teacherChange).find(Boolean);
         if (tc && l.changed && !l.cancelled && !l.note) {
-            const from = tc.old.map(short).filter(Boolean).join(', '), to = tc.new.map(short).filter(Boolean).join(', ');
+            const codes = (xs: string[]): string => { const c = xs.map(short); return c.length && c.every(Boolean) ? c.join(', ') : ''; };   // all codes or none
+            const from = codes(tc.old), to = codes(tc.new);
             if (from && to && from !== to) { out.note = `Vertretung ${from} → ${to}`; out.substitution = { from, to }; }
         }
         return out;

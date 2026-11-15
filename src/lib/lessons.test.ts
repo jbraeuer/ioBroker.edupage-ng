@@ -133,3 +133,14 @@ test('F-0035: note "Vertretung RB → FB" on the changed lesson only, with short
     assert.equal(out[4].substitution, undefined);   // old teacher without a short code: no guess
     assert.equal(enrich([ls[0]], [r('10:20', '11', tc)], [])[0].note, '');   // no lookup given: nothing
 });
+
+test('F-0035 review: no substitution note from the only-entry fallback; a teacher without a code = no note', () => {
+    const short = (id: string): string => ({ '-123': 'RB', '-45': 'FB' } as Record<string, string>)[id] ?? '';
+    const tc = { old: ['-123'], new: ['-45'] };
+    const ls = [at('2026-11-16', '08:00', '11', { changed: true, period: '2' }), at('2026-11-16', '12:15', '11', { changed: true, period: '5' })];
+    const out = enrich(ls, [{ date: '2026-11-16', start: '12:15', period: '5', subjectId: '11', topic: '', homeworkIds: [], teacherChange: tc }], [], short);
+    assert.deepEqual(out.map((l) => l.note), ['', 'Vertretung RB → FB']);
+    const one = enrich([at('2026-11-16', '10:20', '11', { changed: true })],
+        [{ date: '2026-11-16', start: '10:20', period: '', subjectId: '11', topic: '', homeworkIds: [], teacherChange: { old: ['-123', '-9'], new: ['-45'] } }], [], short);
+    assert.equal(one[0].note, '');
+});

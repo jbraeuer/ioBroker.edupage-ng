@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describe, describeChanged, describeDailyPlan, describeSiblings, mask, skeleton } from './structure';
+import { describe, describeChanged, mask } from './structure';
 
 test('describe(): shape only, no content leaks', () => {
     const secret = 'Mathe S. 12 Nr. 3 – Anna Beispiel';
@@ -43,24 +43,9 @@ test('F-0035: substitution items and changed lessons: shape only, masked text, n
     assert.equal(mask('\u00c4 \u00f6 9:x'), 'A a 9:a');
 });
 
-test('F-0035: skeleton keeps tags and classes, masks every text', () => {
-    const k = skeleton('<div class="section print-nobreak"><div class="header"><span>6b Anna</span></div><a href="x?u=Anna">Mehr</a></div>');
-    assert.equal(k, '<div.section.print-nobreak><div.header><span>9a Aaaa</span></div><a>Aaaa</a></div>');
-    assert.ok(!k.includes('Anna'));
-});
-
-test('F-0035: siblings of a changed lesson and the daily plan: shapes only', () => {
-    const items = [
-        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['22'], changed: true },
-        { date: '2026-11-16', uniperiod: '4', subjectid: '9', teacherids: ['11'], removed: true },
-        { date: '2026-11-16', uniperiod: '5', subjectid: '3', teacherids: ['33'] },
-    ];
-    const sib = describeSiblings(items) as { count: number }[];
-    assert.equal(sib[0].count, 2);
-    assert.ok(!JSON.stringify(sib).includes('"22"') && JSON.stringify(sib).includes('removed'));
-    const dp = describeDailyPlan({ dp: { year: 2026, dates: { '2026-11-16': { plan: [{ txt: 'x', header: [] }, { header: [{ text: 'RB FB' }] }] } } } }) as { top: object; perDate: { entries: number; busy: number }[] };
-    assert.deepEqual([dp.perDate[0].entries, dp.perDate[0].busy], [2, 1]);
-    assert.deepEqual(dp.top, { year: 'number', dates: 'object(1)' });
-    assert.ok(!JSON.stringify(dp).includes('RB'));
-    assert.equal(describeDailyPlan(null), null);
+test('F-0035 review: keys that are ids or names never appear; mask covers NFD, caseless letters, other digits', () => {
+    const out = JSON.stringify(describeChanged([{ changed: true, studentids: { '4711': 'x' }, m: { 'Felix Beyer': 1 } }]));
+    for (const bad of ['4711', 'Felix', 'Beyer']) assert.ok(!out.includes(bad), out);
+    assert.equal(mask('Mu\u0308ller'), 'Aaaaaa');
+    assert.equal(mask('\u5f20 \u00b2'), 'a 9');
 });
